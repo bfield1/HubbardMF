@@ -28,6 +28,7 @@ Author: Bernard Field
 import numpy as np
 from warnings import warn
 from numpy.random import default_rng
+import matplotlib.pyplot as plt
 
 # Initialise random number generator.
 rng = default_rng()
@@ -948,6 +949,14 @@ class Hubbard():
         """
         return self.nup + self.ndown
     #
+    def get_coordinates(self):
+        """
+        MUST BE OVERRIDDEN IN SUBCLASS.
+        Returns the coordinates for plotting electron density.
+        Output: a (self.nsites,2) ndarray of floats.
+        """
+        raise NotImplementedError
+    #
     def get_electron_number(self):
         """
         Returns the number of electrons.
@@ -1067,7 +1076,7 @@ class Hubbard():
                     mu += step
                 else:
                     mu -= step
-                # Recalculate our guess at the chemical potential
+                # Recalculate our guess at the number of electrons.
                 nguess = fermi_distribution(energies,T,mu).sum()
         return mu
     #
