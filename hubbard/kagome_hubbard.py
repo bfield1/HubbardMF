@@ -5,13 +5,11 @@ Mean field Hubbard model of Kagome lattice.
 Periodic boundary conditions are assumed.
 
 Created: 2020-07-03
-Last Modified: 2020-08-04
+Last Modified: 2020-08-10
 Author: Bernard Field
 """
 
 import numpy as np
-from hubbard.kagome_ising import kagome_adjacency_tensor
-from hubbard.kagome_ising import kagome_coordinates as kagome_coordinate_tensor
 import json
 from hubbard.base import Hubbard
 
@@ -414,8 +412,105 @@ def kagome_coordinates(nrows,ncols):
 
     Inputs: nrows and ncols, integers, number of rows and columns in supercell.
     Output: a (3*nrows*ncols, 2) array
-
-    Last Modified: 2020-07-03
+    Last Modified: 2020-08-10
     """
-    return np.reshape(kagome_coordinate_tensor(nrows,ncols),
-                      (3*nrows*ncols,2),order='F')
+    # Lattice vectors.
+    a1 = np.array([1/2,np.sqrt(3)/2])
+    a2 = np.array([-1/2,np.sqrt(3)/2])
+    # Sub-lattice vectors
+    sub = np.array([[0,0],a1/2,a2/2])
+    # There's probably a vectorised way to do this, but I don't know it.
+    # I generally don't need to run this too frequently, and its
+    # efficiency isn't atrocious.
+    coords = np.empty((3,nrows,ncols,2))
+    for i in range(3):
+        for j in range(nrows):
+            for k in range(ncols):
+                coords[i,j,k] = sub[i]+j*a1+k*a2
+    return np.reshape(coords,(3*nrows*ncols,2),order='F')
+
+def kagome_adjacency_tensor(nrows, ncols):
+    """
+    Creates the adjacency tensor for the kagome lattice.
+    First three coords is input. Second 3 is output.
+    Returns a 3*nrows*ncols*3*nrows*ncols ndarray.
+    Elements are 1 or 0. Can also have 2's if nrows or ncols is 1.
+    Last Modified: 2020-06-03
+    """
+    # Initialise the adjacency tensor.
+    adj = np.zeros((3,nrows,ncols,3,nrows,ncols))
+    # We have 12 adjacencies (counting each direction separately)
+    # Use multiplication and broadcasting.
+    #(0,i,j)->(1,i,j)
+    # Generate matrices mapping each of coordinates.
+    m0to1 = np.zeros((3,1,1,3,1,1))
+    m0to1[0,0,0,1,0,0] = 1
+    idrow = np.identity(nrows).reshape(1,nrows,1,1,nrows,1)
+    idcol = np.identity(ncols).reshape(1,1,ncols,1,1,ncols)
+    # Multiply together to get the full operation.
+    op = m0to1*idrow*idcol
+    # Add to the adjacency matrix.
+    adj += op
+    # (0,i,j)->(2,i,j)
+    m0to2 = np.zeros((3,1,1,3,1,1))
+    m0to2[0,0,0,2,0,0] = 1
+    op = m0to2*idrow*idcol
+    adj += op
+    # (0,i,j)->(1,i-1,j)
+    rowm1 = np.zeros((nrows,nrows)) # Row minus 1
+    rowm1[(np.arange(nrows),np.mod(np.arange(nrows)-1,nrows))] = 1
+    # mod implements periodic boundary conditions.
+    rowm1 = rowm1.reshape((1,nrows,1,1,nrows,1))
+    op = m0to1*rowm1*idcol
+    adj += op
+    # (0,i,j)->(2,i,j-1)
+    colm1 = np.zeros((ncols,ncols))
+    colm1[(np.arange(ncols),np.mod(np.arange(ncols)-1,ncols))] = 1
+    colm1 = colm1.reshape((1,1,ncols,1,1,ncols))
+    op = m0to2*idrow*colm1
+    adj += op
+    # (1,i,j)->(0,i,j)
+    m1to0 = np.zeros((3,1,1,3,1,1))
+    m1to0[1,0,0,0,0,0] = 1
+    op = m1to0*idrow*idcol
+    adj += op
+    # (1,i,j)->(2,i,j)
+    m1to2 = np.zeros((3,1,1,3,1,1))
+    m1to2[1,0,0,2,0,0] = 1
+    op = m1to2*idrow*idcol
+    adj += op
+    # (1,i,j)->(0,i+1,j)
+    rowp1 = np.zeros((nrows,nrows)) # Row plus 1
+    rowp1[(np.arange(nrows),np.mod(np.arange(nrows)+1,nrows))] = 1
+    rowp1 = rowp1.reshape((1,nrows,1,1,nrows,1))
+    op = m1to0*rowp1*idcol
+    adj += op
+    # (1,i,j)->(2,i+1,j-1)
+    op = m1to2*rowp1*colm1
+    adj += op
+    # (2,i,j)->(0,i,j)
+    m2to0 = np.zeros((3,1,1,3,1,1))
+    m2to0[(2,0,0,0,0,0)] = 1
+    op = m2to0*idrow*idcol
+    adj += op
+    # (2,i,j)->(1,i,j)
+    m2to1 = np.zeros((3,1,1,3,1,1))
+    m2to1[(2,0,0,1,0,0)] = 1
+    op = m2to1*idrow*idcol
+    adj += op
+    # (2,i,j)->(0,i,j+1)
+    colp1 = np.zeros((ncols,ncols))
+    colp1[(np.arange(ncols),np.mod(np.arange(ncols)+1,ncols))] = 1
+    colp1 = colp1.reshape((1,1,ncols,1,1,ncols))
+    op = m2to0*idrow*colp1
+    adj += op
+    # (2,i,j)->(1,i-1,j+1)
+    op = m2to1*rowm1*colp1
+    adj += op
+    # Sanity checking
+    # We have the right number of elements
+    assert adj.sum()==12*nrows*ncols
+    # The tensor is symmetric
+    assert (adj == adj.transpose((3,4,5,0,1,2))).all()
+    # Return
+    return adj
