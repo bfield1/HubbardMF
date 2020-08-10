@@ -5,12 +5,13 @@ Helper scripts for analysing my Mean field Hubbard model of the Kagome
 lattice.
 
 Created: 2020-08-04
-Last Modified: 2020-08-07
+Last Modified: 2020-08-10
 Author: Bernard Field
 """
 
-from kagome_hubbard import KagomeHubbard, ConvergenceWarning, MixingError
-from kagome_hubbard import choose_alpha
+from hubbard.base import ConvergenceWarning, MixingError
+from hubbard.base import choose_alpha
+from hubbard.kagome import KagomeHubbard
 import warnings
 import os.path
 import progress
