@@ -37,7 +37,7 @@ def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500):
         # We need to perform an initial linear mixing.
         while hub.residual(T) > rdiff_initial:
             last_residual = hub.residual(T)
-            kagome.linear_mixing(max_iter=interval,ediff=0.1,
+            hub.linear_mixing(max_iter=interval,ediff=0.1,
                                  rdiff=rdiff_initial,T=T,print_residual=False)
             if debug: print("Linear mixing. Residual="+str(hub.residual(T)))
             # Catch a pathological case where residual doesn't decrease.

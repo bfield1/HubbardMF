@@ -18,10 +18,10 @@ Several things must be defined in the subclasses.
      the plotting routines to do 3D plots. That's a job for a subclass.)
  - save and load methods (you don't have to define them, but they aren't
      defined here). (I may find a way to abstract the saving/loading later.)
- - any bespoke electron density setting methods (details TBC).
+ - any bespoke electron density setting methods, in _electron_density_single_custom
 
 Created: 2020-08-10
-Last Modified: 2020-08-10
+Last Modified: 2020-08-11
 Author: Bernard Field
 """
 
@@ -521,13 +521,6 @@ class Hubbard():
     #
     def set_electrons(self,nup=None,ndown=None,backup=True,**kwargs):
         """
-        TO ADDRESS: In new super-class format, the 'star' method
-        and the corresponding 'points' parameter makes no sense until
-        it is defined in the subclass. I could keep the kwargs packaged
-        and pass whether it is spin up or down, and let that be interpreted
-        downstream rather than handled here. However, I'd still need an
-        intelligent way to add extra cases without copying inherited cases.
-        
         Sets the electron densities.
 
         Inputs: nup, ndown - either an integer for number of electrons
@@ -540,26 +533,22 @@ class Hubbard():
                 density in case of an error. Set to False if you are running
                 as part of the initialisation.
         Keyword Arguments:
-            method - string. {'uniform', 'random', 'star'}. Specifies
+            method - string. {'uniform', 'random'}. Specifies
                 how to generate the electron density if a number
                 of electrons is provided. Ignored if n is a list.
             alpha - optional positive number. Used for random method.
                 Dirichlet alpha parameter. Default is chosen automatically
                 to be as small as practical.
-            points - Boolean, defaalt True. For 'star' method, whether to put
-                spin up in the points of the star.
             
         Effects: Sets nup, ndown, nelectup, nelectdown.
             In the event of an Exception, no changes are made.
 
-        Last Modified: 2020-07-15
+        Last Modified: 2020-08-11
         """
         # Process keyword arguments. kwargs.get(key,default)
         method = kwargs.pop('method','uniform')
         alpha = kwargs.pop('alpha',None)
-        points = kwargs.pop('points',True)
-        if len(kwargs) > 0:
-            raise TypeError("Got an unexpected keyword argument '"+str(list(kwargs.keys())[0])+"'")
+        # Any remaining kwargs are class specific.
         if backup:
             # Write backups
             nup_backup = self.nup
@@ -570,11 +559,11 @@ class Hubbard():
             # Set spin up if applicable.
             if nup is not None:
                 self.nup,self.nelectup = self._electron_density_single(
-                    nup,method,alpha=alpha,points=points)
+                    nup,method,up=True,alpha=alpha,**kwargs)
             # Set spin down if applicable.
             if ndown is not None:
                 self.ndown,self.nelectdown = self._electron_density_single(
-                    ndown,method,alpha=alpha,points=(not points))
+                    ndown,method,up=False,alpha=alpha,**kwargs)
         except:
             if backup:
                 # In the event of an error, undo all the changes.
@@ -669,38 +658,29 @@ class Hubbard():
         # Return
         return en, nup, ndown
     #
-    def _electron_density_single(self,n,method,**kwargs):
+    def _electron_density_single(self,n,method,up,alpha=None,**kwargs):
         """
-        TO ADDRESS: Making this work as a super class
-        that can be added to by inherited classes.
-        I'll need to receive whether I am spin up or down here.
-
         Helper method for set_electrons, so I don't have to
         duplicate my code for the spin up and down cases.
 
-        Inputs: n - either an integer for number of electrons
+        Inputs: n - either a number of electrons
                 or a list-like for the electron density.
-                If integer, must be between 0 and number of sites.
+                If number, must be between 0 and number of sites.
                 If list-like, must be of right length and have
                 values between 0 and 1.
-            method - string. {'uniform', 'random', 'star'}. Specifies
+            method - string. {'uniform', 'random'}. Specifies
                 how to generate the electron density if a number
                 of electrons is provided. Ignored if n is a list.
+            up - Boolean, whether or not this is for the spin-up electrons.
+                Doesn't do anything on its own, but may be passed to
+                other methods.
         Keyword Arguments:
             alpha - optional positive number. Used for random method.
                 Dirichlet alpha parameter. Default is chosen automatically.
-            points - Boolean. Used for star method. Determines whether
-                to put the density in the points of the stars first.
         Outputs: density - ndarray of shape (3*nrows*ncols,)
             nelect - integer.
-        Last Modified; 2020-08-10
+        Last Modified; 2020-08-11
         """
-        # Process kwargs
-        alpha = kwargs.pop('alpha',None)
-        points = kwargs.pop('points',True)
-        if len(kwargs) > 0:
-            raise TypeError("Got an unexpected keyword argument '"+
-                            str(list(kwargs.keys())[0])+"'")
         # A useful constant
         nsites = self.nsites
         try:
@@ -722,10 +702,8 @@ class Hubbard():
                 density = nelect/nsites * np.ones(nsites)
             elif method == 'random':
                 density = random_density(nsites,nelect,alpha)
-            elif method == 'star':
-                density = self._electron_density_star(nelect,points)
             else:
-                raise ValueError("Method "+str(method)+" does not exist.")
+                density = self._electron_density_single_methods(nelect,method,up,alpha=alpha,**kwargs)
         else:
             # n is the electron density.
             density = np.asarray(n)
@@ -744,6 +722,37 @@ class Hubbard():
         if density.min() < 0 or density.max() > 1:
             raise ValueError("The electron density is out of bounds.")
         return density, nelect
+    #
+    def _electron_density_single_methods(self,nelect,method,up,**kwargs):
+        """
+        Helper method for _electron_density_single.
+        Handler for methods for specifying the electron density from
+        the number of electrons.
+        Should a child class wish to implement further methods, they should
+        put `density=super()._electron_density_single_method(*args,**kwargs)'
+        after checking for their own custom methods (in the else statement),
+        to pass the execution back up the stack.
+        
+        Inputs: nelect - number of electrons. This has been tested for being
+                a fraction or integer.
+            method - a string. Specifies the method.
+            up - boolean. Specifies whether this is a spin up or down electron.
+        Keyword Arguments:
+            alpha - positive number. Dirichlet alpha parameter for 'random' method.
+        Output: electron density - (self.nsites,) ndarray, values between 0 and 1.
+        Last Modified: 2020-08-11
+        """
+        # Process kwargs
+        alpha = kwargs.get('alpha',None)
+        # Switch-case the method.
+        if method == 'uniform':
+            density = nelect/self.nsites * np.ones(self.nsites)
+        elif method == 'random':
+            density = random_density(self.nsites,nelect,alpha)
+        else:
+            # Cannot find the method. Raise error.
+            raise ValueError("Method "+str(method)+" does not exist.")
+        return density
     #
     ## GETTERS
     #

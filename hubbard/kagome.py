@@ -5,7 +5,7 @@ Mean field Hubbard model of Kagome lattice.
 Periodic boundary conditions are assumed.
 
 Created: 2020-07-03
-Last Modified: 2020-08-10
+Last Modified: 2020-08-11
 Author: Bernard Field
 """
 
@@ -107,135 +107,35 @@ class KagomeHubbard(Hubbard):
     #
     ## ELECTRON DENSITY MODIFIERS
     #
-    def set_electrons(self,nup=None,ndown=None,backup=True,**kwargs):
+    def _electron_density_single_methods(self,nelect,method,up,**kwargs):
         """
-        Sets the electron densities.
-
-        Inputs: nup, ndown - either an integer for number of electrons
-                or a list-like for the electron density.
-                If integer, must be between 0 and number of sites.
-                If list-like, must be of right length and have
-                values between 0 and 1.
-                May also be None, in which case it is not set.
-            backup - Boolean, default True. Does backing up of the electron
-                density in case of an error. Set to False if you are running
-                as part of the initialisation.
+        Handler for setting the electron density of the Kagome lattice.
+        Accepts the 'star' method and 'points' keyword.
+        See also the parent method.
+        
+        Inputs: nelect - number of electrons.
+            method - string, {'star'}, specifies the method.
+            up - Boolean. Whether this is spin up electrons.
         Keyword Arguments:
-            method - string. {'uniform', 'random', 'star'}. Specifies
-                how to generate the electron density if a number
-                of electrons is provided. Ignored if n is a list.
-            alpha - optional positive number. Used for random method.
-                Dirichlet alpha parameter. Default is chosen automatically
-                to be as small as practical.
-            points - Boolean, defaalt True. For 'star' method, whether to put
-                spin up in the points of the star.
-            
-        Effects: Sets nup, ndown, nelectup, nelectdown.
-            In the event of an Exception, no changes are made.
-
-        Last Modified: 2020-07-15
-        """
-        # Process keyword arguments. kwargs.get(key,default)
-        method = kwargs.pop('method','uniform')
-        alpha = kwargs.pop('alpha',None)
-        points = kwargs.pop('points',True)
-        if len(kwargs) > 0:
-            raise TypeError("Got an unexpected keyword argument '"+str(list(kwargs.keys())[0])+"'")
-        if backup:
-            # Write backups
-            nup_backup = self.nup
-            nelectup_backup = self.nelectup
-            ndown_backup = self.ndown
-            nelectdown_backup = self.nelectdown
-        try:
-            # Set spin up if applicable.
-            if nup is not None:
-                self.nup,self.nelectup = self._electron_density_single(
-                    nup,method,alpha=alpha,points=points)
-            # Set spin down if applicable.
-            if ndown is not None:
-                self.ndown,self.nelectdown = self._electron_density_single(
-                    ndown,method,alpha=alpha,points=(not points))
-        except:
-            if backup:
-                # In the event of an error, undo all the changes.
-                self.nup = nup_backup
-                self.nelectup = nelectup_backup
-                self.ndown = ndown_backup
-                self.nelectdown = nelectdown_backup
-            raise
-    #
-    def _electron_density_single(self,n,method,**kwargs):
-        """
-        Helper method for set_electrons, so I don't have to
-        duplicate my code for the spin up and down cases.
-
-        Inputs: n - either an integer for number of electrons
-                or a list-like for the electron density.
-                If integer, must be between 0 and number of sites.
-                If list-like, must be of right length and have
-                values between 0 and 1.
-            method - string. {'uniform', 'random', 'star'}. Specifies
-                how to generate the electron density if a number
-                of electrons is provided. Ignored if n is a list.
-        Keyword Arguments:
-            alpha - optional positive number. Used for random method.
-                Dirichlet alpha parameter. Default is chosen automatically.
-            points - Boolean. Used for star method. Determines whether
-                to put the density in the points of the stars first.
-        Outputs: density - ndarray of shape (3*nrows*ncols,)
-            nelect - integer.
-        Last Modified; 2020-07-22
+            points - Boolean. Default True. For star method, whether to
+                place the spin up electrons at the points of the star.
+        Output: electron density - (self.nsites,) ndarray.
+        Last Modified: 2020-08-11
         """
         # Process kwargs
-        alpha = kwargs.pop('alpha',None)
-        points = kwargs.pop('points',True)
-        if len(kwargs) > 0:
-            raise TypeError("Got an unexpected keyword argument '"+
-                            str(list(kwargs.keys())[0])+"'")
-        # A useful constant
-        nsites = 3*self.nrows*self.ncols # Number of sites.
-        try:
-            # First, we need to determine if n is the number of
-            # electrons or a list representing the electron density.
-            len(n)
-        except TypeError:
-            # n is the number of electrons.
-            if not self.allow_fractions:
-                nelect = int(round(n))
-                # Check that n was at least close to an integer.
-                if abs(nelect - n) > 1e-10:
-                    warn("Number of electrons "+str(sum(n))+
-                         " is not an integer. Rounding to "+str(nelect)+".")
-            else:
-                nelect = n
-            # Generate an electron density by the appropriate method.
-            if method == 'uniform':
-                density = nelect/nsites * np.ones(nsites)
-            elif method == 'random':
-                density = random_density(nsites,nelect,alpha)
-            elif method == 'star':
+        points = kwargs.get('points',True)
+        # Check the method.
+        if method == 'star':
+            # Star method. We alternate based on spin up or down.
+            if up:
                 density = self._electron_density_star(nelect,points)
             else:
-                raise ValueError("Method "+str(method)+" does not exist.")
+                density = self._electron_density_star(nelect,(not points))
         else:
-            # n is the electron density.
-            density = np.asarray(n)
-            if len(density) != nsites:
-                raise ValueError("n has the wrong length.")
-            if not self.allow_fractions:
-                nelect = int(round(sum(n)))
-                if abs(nelect - sum(n)) > 1e-10:
-                    warn("Number of electrons "+str(sum(n))+
-                         " is not an integer. Rounding to "+str(nelect)+".")
-            else:
-                nelect = sum(n)
-        # Check that values are within bounds.
-        if nelect < 0 or nelect > nsites:
-            raise ValueError("The number of electrons is out of bounds.")
-        if density.min() < 0 or density.max() > 1:
-            raise ValueError("The electron density is out of bounds.")
-        return density, nelect
+            # The method is not here. Pass execution up the MRO.
+            density = super()._electron_density_single_methods(nelect,
+                                                    method,up,**kwargs)
+        return density
     #
     def _electron_density_star(self,n,points):
         """
