@@ -21,7 +21,7 @@ Several things must be defined in the subclasses.
  - any bespoke electron density setting methods, in _electron_density_single_custom
 
 Created: 2020-08-10
-Last Modified: 2020-08-11
+Last Modified: 2020-08-17
 Author: Bernard Field
 """
 
@@ -679,7 +679,7 @@ class Hubbard():
                 Dirichlet alpha parameter. Default is chosen automatically.
         Outputs: density - ndarray of shape (3*nrows*ncols,)
             nelect - integer.
-        Last Modified; 2020-08-11
+        Last Modified; 2020-08-17
         """
         # A useful constant
         nsites = self.nsites
@@ -698,12 +698,8 @@ class Hubbard():
             else:
                 nelect = n
             # Generate an electron density by the appropriate method.
-            if method == 'uniform':
-                density = nelect/nsites * np.ones(nsites)
-            elif method == 'random':
-                density = random_density(nsites,nelect,alpha)
-            else:
-                density = self._electron_density_single_methods(nelect,method,up,alpha=alpha,**kwargs)
+            density = self._electron_density_single_methods(nelect,method,up,
+                                                            alpha=alpha,**kwargs)
         else:
             # n is the electron density.
             density = np.asarray(n)
@@ -739,16 +735,30 @@ class Hubbard():
             up - boolean. Specifies whether this is a spin up or down electron.
         Keyword Arguments:
             alpha - positive number. Dirichlet alpha parameter for 'random' method.
+            points - boolean. Parameter for 'impurity' method. Are up spins
+                the localised ones?
         Output: electron density - (self.nsites,) ndarray, values between 0 and 1.
-        Last Modified: 2020-08-11
+        Last Modified: 2020-08-17
         """
         # Process kwargs
         alpha = kwargs.get('alpha',None)
+        points = kwargs.get('points',True)
         # Switch-case the method.
         if method == 'uniform':
+            # Uniform electron density.
             density = nelect/self.nsites * np.ones(self.nsites)
         elif method == 'random':
+            # Fully random electron density.
             density = random_density(self.nsites,nelect,alpha)
+        elif method == 'impurity':
+            # One spin channel is fully localised in random
+            # sites while the other channel is uniform.
+            if (points and not up) or (not points and up):
+                # Uniform
+                density = nelect/self.nsites * np.ones(self.nsites)
+            else:
+                # Random points
+                density = random_points_density(self.nsites,nelect)
         else:
             # Cannot find the method. Raise error.
             raise ValueError("Method "+str(method)+" does not exist.")
@@ -1471,3 +1481,28 @@ def bounded_random_numbers_with_sum_dirichlet(n,total,alpha):
         # less than or equal to 1.
         if vals.max() <= 1:
             return vals
+
+def random_points_density(n,total):
+    """
+    In a list of length n, sets 'total' sites to 1, while others
+    are zero.
+    In the case of non-integer 'total', puts the fractional
+    component in one of the sites.
+
+    Inputs: n - positive integer, length of list to return.
+        total - non-negative number. Value list should sum to.
+    Output: (n,) ndarray of numbers between 0 and 1 which sum to total.
+
+    Last Modified: 2020-08-17
+    """
+    # Initialise empty array.
+    density = np.zeros(n)
+    # Set some rando sites to 1.
+    density[rng.choice(n,size=int(total),replace=False)] = 1
+    # Handle the fractional component
+    if total - int(total) > 0 and total < n:
+        # Choose a random site not yet occupied.
+        indices = np.where(density==0)[0]
+        # Put the fractional component there.
+        density[rng.choice(indices)] = nelect-int(nelect)
+    return density
