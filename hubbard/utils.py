@@ -106,7 +106,10 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
     alpha = choose_alpha(nsites,min(nupmax,nsites/2))*10
     # Progress bar
     if not verbose:
-        progress.new(60,nupmax,nupmin)
+        if nupmin == nupmax:
+            progress.new(60,repeats,0)
+        else:
+            progress.new(60,nupmax,nupmin)
     else:
         print("Nup from "+str(nupmin)+" to "+str(nupmax))
     # Iterate
@@ -128,7 +131,9 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
                     # If interrupt, give a half second to wait for a second interrupt.
                     if verbose: print("Skipping...")
                     sleep(0.5)
-                if not verbose: progress.update(nup+i/repeats*stepsize)
+                if not verbose:
+                    if nupmin==nupmax: progress.update(i+1)
+                    else: progress.update(nup+i/repeats*stepsize)
     except KeyboardInterrupt:
         # If we interrupt, still return cleanly.
         if not verbose:
