@@ -11,7 +11,7 @@ Author: Bernard Field
 
 import numpy as np
 import json
-from hubbard.base import Hubbard
+from hubbard.base import Hubbard, rng
 
 class KagomeHubbard(Hubbard):
     #
