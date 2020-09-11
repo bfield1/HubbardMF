@@ -1321,7 +1321,7 @@ class Hubbard():
         """
         if val is None:
             # If val not set, we toggle.
-            val = not allow_fractions
+            val = not self.allow_fractions
         if val:
             # Setting to True is easy. Nothing to be done.
             self.allow_fractions = True
