@@ -21,7 +21,7 @@ Several things must be defined in the subclasses.
  - any bespoke electron density setting methods, in _electron_density_single_custom
 
 Created: 2020-08-10
-Last Modified: 2020-08-17
+Last Modified: 2020-09-16
 Author: Bernard Field
 """
 
@@ -351,8 +351,8 @@ class Hubbard():
     #
     def move_electrons(self,up=0,down=0):
         """
-        Adds or subtracts spin up and down electrons, using the heuristic of
-        adding/subtracting single energy eigenvalues.
+        Add or subtract spin up and down electrons, based on eigenstates.
+
         Because doing this changes the density and thus the Hamiltonian,
         repeated calls to this function will give a different result than
         a single call to this function.
@@ -361,18 +361,15 @@ class Hubbard():
                 If negative, subtracts.
             down - integer, default 0. Number of spin down electrons to add.
                 If negative, subtracts.
-        Last Modified: 2020-07-22
+        Last Modified: 2020-09-16
         """
         # Check that up and down are valid.
         if up+self.nelectup > self.nsites or up+self.nelectup < 0:
             raise ValueError("Trying to put number of up electrons out of bounds.")
         if down+self.nelectdown > self.nsites or down+self.nelectdown < 0:
             raise ValueError("Trying to put number of down electrons out of bounds.")
-        # Generate the potential energy.
-        potup, potdown, _ = self._potential()
-        # Solve for the single-electron energy levels.
-        _, vup = np.linalg.eigh(self.kin + potup)
-        _, vdown = np.linalg.eigh(self.kin + potdown)
+        # Get the eigenvectors
+        _, _, vup, vdown = self._eigensystem()
         # We want the amplitude squared of the eigenvectors
         vup = vup ** 2
         vdown = vdown ** 2
@@ -612,13 +609,12 @@ class Hubbard():
         Presets: nup, ndown, u, kin, nelectup, nelectdown
         Outputs: energy (real number), nup, ndown
 
-        Last Modified: 2020-07-22
+        Last Modified: 2020-09-16
         """
         # Generate the potential energy.
-        potup, potdown, offset = self._potential()
+        _, _, offset = self._potential()
         # Solve for the single-electron energy levels.
-        eup, vup = np.linalg.eigh(self.kin + potup)
-        edown, vdown = np.linalg.eigh(self.kin + potdown)
+        eup, edown, vup, vdown = self._eigensystem()
         # Calculate the energy by filling electrons.
         energy = self._energy_from_states(eup,edown,offset)
         # Calculate the new densities.
@@ -638,16 +634,16 @@ class Hubbard():
         Inputs: T - positive number, temperature for Fermi Dirac distribution.
         Outputs: energy, nup, ndown
 
-        Last Modified: 2020-07-29
+        Last Modified: 2020-09-16
         """
         # Generate the potential energy.
-        potup, potdown, offset = self._potential()
+        _, _, offset = self._potential()
         # Solve for the single-electron energy levels.
-        eup, vup = np.linalg.eigh(self.kin + potup)
-        edown, vdown = np.linalg.eigh(self.kin + potdown)
+        eup, edown, vup, vdown = self._eigensystem()
         # Get chemical potential
         energies = np.sort(np.concatenate((eup,edown)))
-        mu = self._chemical_potential_from_states(T,self.nelectup+self.nelectdown,energies)
+        mu = self._chemical_potential_from_states(
+            T,self.nelectup+self.nelectdown,energies)
         # Calculate energy
         en = self._energy_from_states(eup,edown,offset,T,mu)
         # Get new electron densities.
@@ -778,18 +774,14 @@ class Hubbard():
             N - number of electrons. Defaults to however
                 many the system currently has.
         Output: the chemical potential, a number
-        Last Modified: 2020-07-29
+        Last Modified: 2020-09-16
         """
         if T < 0:
             raise ValueError("T cannot be negative.")
         if N is None:
             N = self.nelectup + self.nelectdown
         # Get the eigenenergy spectrum.
-        # Generate the potential energy.
-        potup, potdown, offset = self._potential()
-        # Solve for the single-electron energy levels.
-        eup, _ = np.linalg.eigh(self.kin + potup)
-        edown, _ = np.linalg.eigh(self.kin + potdown)
+        eup, edown, _, _ = self._eigensystem()
         # Consolidate and sort the eigenenergies
         energies = np.sort(np.concatenate((eup,edown)))
         return self._chemical_potential_from_states(T,N,energies)
@@ -809,14 +801,10 @@ class Hubbard():
             dosup - the DOS of the spin up states.
             dosdown - the DOS of the spin down states.
 
-        Last Modified: 2020-07-14
+        Last Modified: 2020-09-16
         """
         # Get the eigenenergy spectrum.
-        # Generate the potential energy.
-        potup, potdown, offset = self._potential()
-        # Solve for the single-electron energy levels.
-        eup, _ = np.linalg.eigh(self.kin + potup)
-        edown, _ = np.linalg.eigh(self.kin + potdown)
+        eup, edown, _, _ = self._eigensystem()
         # Determine energy bounds if not specified.
         if emin is None:
             emin = min(eup.min(),edown.min()) - 3*sigma
@@ -853,14 +841,10 @@ class Hubbard():
             List of eigenenergies of spin down states.
             List of electron densities of spin down states.
 
-        Last Modified: 2020-07-22
+        Last Modified: 2020-09-16
         """
         # Get eigenstates
-        # Generate the potential energy.
-        potup, potdown, offset = self._potential()
-        # Solve for the single-electron energy levels.
-        eup, vup = np.linalg.eigh(self.kin + potup)
-        edown, vdown = np.linalg.eigh(self.kin + potdown)
+        eup, edown, vup, vdown = self._eigensystem()
         # Convert emin and emax to indices
         if mode=='states': # emin and emax are indices, 1-based indexing.
             if emin is None:
@@ -907,13 +891,12 @@ class Hubbard():
             for the occupancies.
         Output: energy, a number.
 
-        Last Modified: 2020-07-21
+        Last Modified: 2020-09-16
         """
         # Generate the potential energy.
-        potup, potdown, offset = self._potential()
+        _, _, offset = self._potential()
         # Solve for the single-electron energy levels.
-        eup, _ = np.linalg.eigh(self.kin + potup)
-        edown, _ = np.linalg.eigh(self.kin + potdown)
+        eup, edown, _, _ = self._eigensystem()
         if T is not None:
             mu = self.chemical_potential(T)
         else:
@@ -929,13 +912,10 @@ class Hubbard():
 
         Outputs: two numbers, the Fermi level for the spin up and spin down states.
 
-        Last Modified: 2020-07-29
+        Last Modified: 2020-09-16
         """
-        # Generate the potential energy.
-        potup, potdown, offset = self._potential()
         # Solve for the single-electron energy levels.
-        eup, _ = np.linalg.eigh(self.kin + potup)
-        edown, _ = np.linalg.eigh(self.kin + potdown)
+        eup, edown, _, _ = self._eigensystem()
         if self.allow_fractions:
             Nup = int(round(self.nelectup))
             Ndown = int(round(self.nelectdown))
@@ -987,7 +967,7 @@ class Hubbard():
     def get_kinetic(self):
         """
         Returns the kinetic energy matrix.
-        Output: (3*nrows*ncols,3*nrows*ncols) ndarray
+        Output: (nsites,nsites) ndarray
         Last Modified: 2020-07-15
         """
         return self.kin
@@ -1098,6 +1078,25 @@ class Hubbard():
                 # Recalculate our guess at the number of electrons.
                 nguess = fermi_distribution(energies,T,mu).sum()
         return mu
+    #
+    def _eigensystem(self):
+        """
+        Solves the eigensystem and returns the eigenenergies and states.
+
+        Outputs: eup, edown, vup, vdown
+            eup, edown - (nsites,) ndarray of numbers, sorted. Eigenenergies.
+            vup, vdown - (nsites,nsites) ndarray of numbers. Eigenvectors.
+                v[:,i] is the normalised eigenvector corresponding to the
+                eigenvalue e[i], as output by np.linalg.eigh.
+
+        Last Modified: 2020-09-16
+        """
+        # Get the potential matrices
+        potup, potdown, _ = self._potential()
+        # Solve for the single-electron energy levels.
+        eup, vup = np.linalg.eigh(self.kin + potup)
+        edown, vdown = np.linalg.eigh(self.kin + potdown)
+        return eup, edown, vup, vdown
     #
     def _energy_from_states(self,eup,edown,offset,T=None,mu=None):
         """
