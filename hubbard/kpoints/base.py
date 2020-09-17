@@ -11,8 +11,8 @@ The kinetic energy matrix is also no longer stored but must be
 dynamically constructed for each k-point.
 
 Several things must be defined in the subclasses.
- - get_kinetic and set_kinetic. This needs to be set in the initialisation step,
-    and ideally allowed to be changed later too. THIS ONE IS IMPORTANT.
+ - get_kinetic and set_kinetic. get_kinetic needs to be callable after
+    initialisation. THIS ONE IS IMPORTANT.
  - The copy method. I don't know which data you need to feed into new instances.
  - get_coordinates - returns a (nsites, 2) ndarray which indicates
      the Cartesian coordinates of each site. Used for plotting.
@@ -21,8 +21,10 @@ Several things must be defined in the subclasses.
  - save and load methods (you don't have to define them, but they aren't
      defined here). (I may find a way to abstract the saving/loading later.)
  - any bespoke electron density setting methods, in
-     _electron_density_single_custom.
-
+     _electron_density_single_methods.
+There is also the variable self.dims. It tells you how many dimensions the
+k-space vectors exist in. It defaults to 2, but you can make it any positive
+integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
 Last Modified: 2020-09-17
@@ -58,13 +60,18 @@ class HubbardKPoints():
         if nsites <= 0:
             raise ValueError("Number of sites must be positive.")
         self.nsites = nsites
+        """Number of sites."""
         self.u = u
+        """Hubbard U parameter."""
         self.allow_fractions = allow_fractions
+        """Flag for allow_fractions (toggle with toggle_allow_fractions)."""
         self.mag = 0
+        """Magnetic field."""
         self.set_electrons(nup,ndown,**kwargs,backup=False)
         # If number of dimensions has not already been set, set it.
         if not hasattr(self, 'dims'):
             self.dims = 2
+            """Number of dimensions in momentum-space."""
         # Initialise the k-mesh as a single k-point.
         self.set_kmesh(*([1]*self.dims))
     #

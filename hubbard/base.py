@@ -1,26 +1,42 @@
 #!/usr/bin/python3
 
 """
-Base class for the Mean field Hubbard model.
-Has the mixing routines and other things which
-aren't dependent on the specifics of the lattice.
-Gamma point only.
+Base class for the Mean field Hubbard model, at the Gamma point only.
 
+Has the mixing routines and other things which aren't dependent on the
+specifics of the lattice.
 
+There are a few main differences from the parent class HubbardKPoints.
+ - While HubbardKPoints dynamically generates the kinetic energy matrix
+    for a given k, here the kinetic energy has no variables which change
+    mid-calculation, so the kinetic energy matrix is cached as self.kin.
+    Many methods here access self.kin directly. set_kinetic is expected to
+    set self.kin, rather than merely record parameters.
+ - _eigensystem is streamlined to exploit the single k-point calculation.
+ - set_kmesh won't do anything other than make the Gamma point.
+
+A key advantage of the Gamma point only routine is that it simplifies some
+algorithms. Building kinetic energy matrices is easier without having to figure
+out where momentum comes into it. The move_electrons method currently is only
+implemented for Gamma point only (although that's mainly a matter of it not being
+the most useful method so not worth development time). Having a cached kinetic energy
+matrix rather than needing to remember a bunch of parameters can make complex
+Hamiltonians easier to deal with.
+There might be a small performance improvement as well, although I haven't tested it.
 
 Several things must be defined in the subclasses.
  - The kinetic energy matrix, self.kin. This needs to be set in the 
      initialisation step. Ideally you'd also allow it to be
      changed later. THIS ONE IS IMPORTANT.
- - The copy method. find_magnetic_minimum won't work if this isn't
-     defined. 
+ - The copy method. find_magnetic_minimum won't work if this isn't defined. And
+    I don't know which data you need to feed into new instances.
  - get_coordinates - returns a (nsites, 2) ndarray which indicates
      the Cartesian coordinates of each site. Used for plotting.
      (I assume a 2D lattice for plotting. 3D plotting will require re-working
      the plotting routines to do 3D plots. That's a job for a subclass.)
  - save and load methods (you don't have to define them, but they aren't
      defined here). (I may find a way to abstract the saving/loading later.)
- - any bespoke electron density setting methods, in _electron_density_single_custom
+ - any bespoke electron density setting methods, in _electron_density_single_methods
 
 Created: 2020-08-10
 Last Modified: 2020-09-17
@@ -34,7 +50,7 @@ import numpy as np
 from hubbard.kpoints.base import HubbardKPoints
 
 class Hubbard(HubbardKPoints):
-    """Gamma-point only implementation of the Hubbard model; base class."""
+    """Base class for the Mean field Hubbard model, at the Gamma point only."""
     #
     ## IO
     #
@@ -120,11 +136,13 @@ class Hubbard(HubbardKPoints):
     #
     ## GETTERS
     #
-    def get_kinetic(self):
+    def get_kinetic(self,k=None):
         """
         Returns the kinetic energy matrix.
+
+        Inputs: None (k is a dummy variable for compatibility with parent class.)
         Output: (nsites,nsites) ndarray
-        Last Modified: 2020-07-15
+        Last Modified: 2020-09-17
         """
         return self.kin
     #
