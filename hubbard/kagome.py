@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 
 """
-Mean field Hubbard model of Kagome lattice.
+Mean field Hubbard model of Kagome lattice. Gamma point only.
+
 Periodic boundary conditions are assumed.
 
 Created: 2020-07-03
-Last Modified: 2020-08-11
+Last Modified: 2020-09-17
 Author: Bernard Field
 """
 
@@ -22,9 +23,9 @@ class KagomeHubbard(Hubbard):
     def __init__(self,nrows,ncols,u=0,t=1,nup=0,ndown=0,
                  allow_fractions=False,**kwargs):
         """
-        Creates a kagome lattice and initialises
-        things. nrows and ncols cannot be changed
-        later without building a new instance.
+        Creates a kagome lattice and initialises things.
+
+        nrows and ncols cannot be changed later without building a new instance.
 
         Inputs: nrows - positive integer, number of rows
                 in the supercell.
@@ -250,6 +251,8 @@ def simulate(nrows,ncols,nelectup,nelectdown,u,**kwargs):
     """
     Sets up and does a Hubbard calculation on a kagome lattice.
 
+    I recommend you look to hubbard.utils instead. This is deprecated.
+
     Inputs: nrows - positive integer. Number of rows in the supercell.
         ncols - positive integer. Number of columns in the supercell.
         nelectup - non-negative integer. Number of spin up electrons.
@@ -272,12 +275,7 @@ def simulate(nrows,ncols,nelectup,nelectdown,u,**kwargs):
             Dirichlet parameter for random generation. If not set, is
             automatically chosen for optimal spread.
 
-    Outputs: en, nup, ndown
-        en - real number. The energy of the system.
-        nup - (3*nrows*ncols,) ndarray of floats between 0 and 1.
-            Site-occupation (or density) of spin up electrons.
-            Should sum to nelectup.
-        ndown - as nup, but for spin down electrons.
+    Outputs: KagomeHubbard object.
     
     Last Modified: 2020-07-10
     """
@@ -334,6 +332,7 @@ def kagome_coordinates(nrows,ncols):
 def kagome_adjacency_tensor(nrows, ncols):
     """
     Creates the adjacency tensor for the kagome lattice.
+    
     First three coords is input. Second 3 is output.
     Returns a 3*nrows*ncols*3*nrows*ncols ndarray.
     Elements are 1 or 0. Can also have 2's if nrows or ncols is 1.
