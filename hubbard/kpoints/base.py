@@ -522,7 +522,8 @@ class HubbardKPoints():
             frac = nstates - int(nstates)
             # Add energy from fractionally occupied states.
             density += abs(evect[:,int(nstates)])**2 * frac
-        return density
+        # Divide by kpoints to normalise.
+        return density/self.kpoints
     #
     def _eigenstep(self):
         """
@@ -583,8 +584,8 @@ class HubbardKPoints():
         # Get new electron densities.
         weightup = fermi_distribution(eup,T,mu)
         weightdown = fermi_distribution(edown,T,mu)
-        nup = np.sum(weightup*abs(vup)**2,1)
-        ndown = np.sum(weightdown*abs(vdown)**2,1)
+        nup = np.sum(weightup*abs(vup)**2,1)/self.kpoints
+        ndown = np.sum(weightdown*abs(vdown)**2,1)/self.kpoints
         # Return
         return en, nup, ndown
     #
@@ -759,7 +760,7 @@ class HubbardKPoints():
         dosdown = (np.exp(-(energymesh - edownmesh)**2 / (2*sigma))/
                  (sigma*np.sqrt(2*np.pi))).sum(axis = 0)
         # Return
-        return energy, dosup, dosdown
+        return energy, dosup/self.kpoints, dosdown/self.kpoints
     #
     def eigenstates(self,mode='states',emin=None,emax=None):
         """
@@ -912,7 +913,7 @@ class HubbardKPoints():
         MUST BE OVERRIDDEN IN SUBCLASS.
         
         Returns the kinetic energy matrix for a given momentum
-        Expected Input: k, a len(self.dims) vector.
+        Expected Input: k, a length self.dims vector.
         Expected Output: (nsites,nsites) ndarray
         Last Modified: 2020-09-16
         """
@@ -1091,22 +1092,26 @@ class HubbardKPoints():
             # Calculate the energy by filling electrons.
             if not self.allow_fractions:
                 # Occupation is strictly integers.
-                en = sum(eup[0:Nup]) + sum(edown[0:Ndown]) + offset
+                en = (sum(eup[0:Nup]) + sum(edown[0:Ndown])) / self.kpoints \
+                     + offset
             else:
                 # Occupation may be fractional.
-                en = sum(eup[0:int(Nup)]) + sum(edown[0:int(Ndown)]) + offset
+                en = sum(eup[0:int(Nup)]) + sum(edown[0:int(Ndown)])
                 # Get the fractional part of the occupations.
                 fracup = Nup - int(Nup)
                 fracdown = Ndown - int(Ndown)
                 # Add energy from fractionally occupied states.
                 if fracup > 0: en += eup[int(Nup)] * fracup
                 if fracdown > 0: en += edown[int(Ndown)] * fracdown
+                en = en / self.kpoints + offset
         else:
             # Calculate energies by weighting states by Fermi distribution
             if mu is None:
                 raise TypeError("If T is provided, mu must also be provided.")
             energies = np.concatenate((eup,edown))
-            en = np.sum(energies * fermi_distribution(energies, T, mu)) + offset
+            en = np.sum(energies *
+                        fermi_distribution(energies, T, mu))/self.kpoints \
+                        + offset
         return en
     #
     def _potential(self):
@@ -1240,7 +1245,7 @@ class HubbardKPoints():
         """
         raise NotImplementedError
     #
-    def set_kmesh(*args,method='monkhorst'):
+    def set_kmesh(self,*args,method='monkhorst'):
         """
         Set the k-mesh used for Brillouin zone sampling.
 
@@ -1282,7 +1287,7 @@ class HubbardKPoints():
                 # In original Monkhorst-Pack scheme, an even number
                 # of subdivisions leads to shifting away from k-point
                 # by half a subdivision
-                shift = np.mod(args,2)/2/np.array(args)
+                shift = np.mod(np.array(args)+1,2)/2/np.array(args)
                 self.kmesh += shift
             elif method == 'gamma':
                 pass

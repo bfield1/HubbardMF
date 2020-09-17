@@ -142,7 +142,8 @@ class KagomeHubbard(Hubbard):
     #
     def _electron_density_star(self,n,points):
         """
-        Produces a star-like configuration of electron density.
+        Produce a star-like configuration of electron density.
+        
         I found this to be the ground state of the Kagome Hubbard
         lattice for a good part of the parameter space.
 
@@ -186,7 +187,8 @@ class KagomeHubbard(Hubbard):
     #
     def get_coordinates(self):
         """
-        Returns the coordinates for plotting electron density.
+        Return the coordinates for plotting electron density.
+        
         Output: a (self.nsites,2) ndarray of floats.
         Last Modified: 2020-08-10
         """
@@ -199,9 +201,9 @@ class KagomeHubbard(Hubbard):
     #
     def set_kinetic(self,t):
         """
-        Creates the kinetic energy part of the kagome
-        Hamiltonian matrix.
-        Coordinates are sublattice+row*3+col*nrows.
+        Create the kinetic energy part of the kagome Hamiltonian matrix.
+        
+        Coordinates are sublattice+row*3+col*nrows*3.
 
         Inputs: t - real number. Hopping constant.
         Effect: sets self.kin to a 3*nrows*ncols dimensional square ndarray.
@@ -217,7 +219,8 @@ class KagomeHubbard(Hubbard):
     #
     def set_kinetic_random(self,t,wt=0,we=0):
         """
-        Creates a kinetic energy matrix with some random noise in it.
+        Create a kinetic energy matrix with some random noise in it.
+        
         Random noise is uniform. Noise of hopping constants centred on
         t and noise of on-site energy centred on 0.
 
