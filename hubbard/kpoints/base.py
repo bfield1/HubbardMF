@@ -1244,7 +1244,7 @@ class HubbardKpoints():
         The second way is to provide an explicit list of k-points.
 
         Inputs (1): self.dims positive integers.
-        Inputs (2): list of length self.dims numbers.
+        Inputs (2): list of lists of length self.dims numbers.
 
         Keyword arguments: method - string, {'monkhorst', 'gamma'}
                 'monkhorst' makes a regular Monkhorst Pack grid.
