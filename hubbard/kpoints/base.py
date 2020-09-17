@@ -38,7 +38,7 @@ from hubbard.misc import ConvergenceWarning, MixingError, fermi_distribution,\
      random_density, choose_alpha, bounded_random_numbers_with_sum_dirichlet,\
      random_points_density
 
-class HubbardKpoints():
+class HubbardKPoints():
     """Base class for Mean Field Hubbard model with Brillouin zone sampling."""
     #
     ## IO

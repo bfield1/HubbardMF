@@ -31,9 +31,9 @@ from warnings import warn
 
 import numpy as np
 
-from hubbard.kpoints.base import HubbardKpoints
+from hubbard.kpoints.base import HubbardKPoints
 
-class Hubbard(HubbardKpoints):
+class Hubbard(HubbardKPoints):
     """Gamma-point only implementation of the Hubbard model; base class."""
     #
     ## IO
