@@ -11,7 +11,9 @@ Author: Bernard Field
 
 import numpy as np
 import json
-from hubbard.base import Hubbard, rng
+from hubbard.base import Hubbard
+
+rng = np.random.default_rng()
 
 class KagomeHubbard(Hubbard):
     #
