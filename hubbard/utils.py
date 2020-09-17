@@ -1,23 +1,24 @@
 #!/usr/bin/python3
 
 """
-Helper scripts for analysing my Mean field Hubbard model of the Kagome
-lattice.
+Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 
 Created: 2020-08-04
-Last Modified: 2020-08-11
+Last Modified: 2020-09-17
 Author: Bernard Field
 """
 
-from hubbard.base import ConvergenceWarning, MixingError
-from hubbard.base import choose_alpha
-from hubbard.kagome import KagomeHubbard
 import warnings
 import os.path
-import progress
-import numpy as np
 from time import sleep
 from glob import glob
+
+import numpy as np
+
+from hubbard.misc import ConvergenceWarning, MixingError, choose_alpha
+from hubbard.kagome import KagomeHubbard
+import progress
+
 
 def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500):
     """
