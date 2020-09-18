@@ -186,19 +186,21 @@ def write_list(kagome_list,directory='.',ext=''):
     for kagome in kagome_list:
         write(kagome,directory,ext)
 
-def read_list(directory='.',pattern='U*cell*x*n*'):
+def read_list(directory='.', pattern='U*cell*x*n*', cls=KagomeHubbard):
     """
-    Reads a directory filled with KagomeHubbard files.
+    Reads a directory filled with Hubbard files.
+
     Uses glob matching for the pattern.
 
     Inputs: directory - string to a directory
         pattern - string, glob pattern for the files to load.
-    Output: list of KagomeHubbard objects.
-    Last Modified: 2020-08-06
+        cls - class. Class to interpret the files as.
+    Output: list of cls objects.
+    Last Modified: 2020-09-18
     """
     true_pattern = directory + '/' + pattern
     files = glob(true_pattern)
-    kag_list = [ KagomeHubbard.load(f) for f in files ]
+    kag_list = [ cls.load(f) for f in files ]
     return kag_list
 
 def boltzmann_average(hub_list,T,func,Ten=None):
