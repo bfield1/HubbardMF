@@ -4,7 +4,7 @@
 Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 
 Created: 2020-08-04
-Last Modified: 2020-09-17
+Last Modified: 2020-10-02
 Author: Bernard Field
 """
 
@@ -17,7 +17,7 @@ import numpy as np
 
 from hubbard.misc import ConvergenceWarning, MixingError, choose_alpha
 from hubbard.kagome import KagomeHubbard
-import progress
+import hubbard.progress as progress
 
 
 def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500):
