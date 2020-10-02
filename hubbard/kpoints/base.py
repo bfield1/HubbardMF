@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2020-09-17
+Last Modified: 2020-10-02
 Author: Bernard Field
 """
 
@@ -602,6 +602,39 @@ class HubbardKPoints():
     #
     ## GETTERS
     #
+    def band_structure(self, klist, nsec):
+        """
+        Get the band structure - eigenenergies in paths between some k-points.
+
+        Currently the path in the Brillouin zone needs to be continuous.
+        I might eventually add support for discontinuous band structures.
+
+        Inputs: klist - list-like containing length self.dim list-likes of
+                numbers, i.e. k-points. k-points are in fractional coordinates.
+                We compute the band structure in straight lines between
+                consecutive points in klist.
+            nsec - positive integer. Number of k-points to evaluate along each
+                path (not including the starting point).
+        Outputs: a shape (nsec*(len(klist)-1)+1,self.dim) ndarray, which is the
+                list of all the k-points, in fractional coordinates.
+            A shape (nsec*(len(klist)-1)+1,2,self.nsites) ndarray, which is the
+                spin polarised band structure. 1st axis maps to the list of
+                kpoints. 2nd axis is spin (up then down).
+
+        Last Modified: 2020-10-02
+        """
+        # Convert to numpy array
+        klist = np.asarray(klist)
+        # Generate full list of k-points from the provided list of key points.
+        # Piecewise parametric lines. The parameter within each segment,
+        # (i/nsec - int(i/nsec)), has range [0,1).
+        # It is essentially k[n+1]*t + k[n]*(1-t).
+        klist_full = [ (klist[int(np.ceil(i/nsec))] - klist[int(i/nsec)])
+                       * (i/nsec - int(i/nsec)) + klist[int(i/nsec)]
+                       for i in range(nsec*(len(klist)-1)+1) ]
+        # Return the band structure
+        return klist_full, self.eigenvalues_at_kpoints(klist_full)
+    #
     def chemical_potential(self,T,N=None):
         """
         Determine chemical potential for a given temperature.
@@ -666,6 +699,34 @@ class HubbardKPoints():
                  (sigma*np.sqrt(2*np.pi))).sum(axis = 0)
         # Return
         return energy, dosup/self.kpoints, dosdown/self.kpoints
+    #
+    def eigenvalues_at_kpoints(self, klist=None):
+        """
+        Returns eigenenergies at the specified k-points.
+
+        Input: klist, list-like containing length self.dim list-likes
+                of numbers. i.e. a list of k-points. Defaults to self.kmesh.
+                k-points are in fractional coordinates.
+        Output: a shape (len(klist),2,self.nsites) ndarray. First axis is
+            the k-points. 2nd axis is the spin (up or down). Third are the
+            eigenergies.
+
+        Last Modified: 2020-10-02
+        """
+        # Default value
+        if klist is None:
+            klist = self.kmesh
+        # Initialise
+        bands = np.empty((len(klist),2,self.nsites))
+        potup, potdown, _ = self._potential()
+        # Iterate through the k-points.
+        for n, k in enumerate(klist):
+            kin = self.get_kinetic(k)
+            # Spin up eigenvalues
+            bands[n,0] = np.linalg.eigvalsh(kin + potup)
+            # Spin down eigenvalues
+            bands[n,1] = np.linalg.eigvalsh(kin + potdown)
+        return bands
     #
     def eigenstates(self,mode='states',emin=None,emax=None):
         """
@@ -1044,6 +1105,28 @@ class HubbardKPoints():
         return potup, potdown, offset
     #
     ## PLOTTERS
+    #
+    def plot_bands(self, klist, nsec, T=None, emin=None, emax=None,
+                   klabels=None):
+        """
+        Plot the band structure, for some given k-points.
+
+        Inputs: klist - list-like containing length self.dim list-likes of
+                numbers, i.e. k-points. k-points are in fractional coordinates.
+                We compute the band structure in straight lines between
+                consecutive points in klist.
+            nsec - positive integer. Number of k-points to evaluate along each
+                path (not including the starting point).
+            T - non-negative number. Temperature with which to calculate
+                the chemical potential. If omitted, no Fermi energy is used.
+                If provided, energies are shifted to be relative to Fermi.
+            emin - number. Minimum energy to plot.
+            emax - number. Maximum energy to plot.
+            klabels - length len(klist) list of strings, marking the tick
+                labels.
+        Effects: Makes a plot.
+        """
+        pass
     #
     def plot_spin(self,marker_scale=1):
         """
