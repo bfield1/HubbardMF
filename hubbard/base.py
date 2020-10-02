@@ -60,6 +60,101 @@ class Hubbard(HubbardKPoints):
     #
     ## ELECTRON DENSITY MODIFIERS
     #
+    def find_magnetic_minimum(self,max_iter=500,ediff=1e-6,mix=0.5,verbose=False):
+        """
+        Flips the spin of electrons (self-consistently) until we find an
+        energy minimum.
+        I do not recommend this method any more, although it is useable.
+        A better method is linear_mixing with finite T.
+        I note that for large U the energy landscape is difficult to
+        traverse. This method (and linear_mixing) will only find a
+        local minimum.
+        
+        Inputs: max_iter, ediff, mix - as for linear_mixing.
+            verbose - Boolean, default False. Prints progress.
+        
+        Last Modified: 2020-08-10
+        """
+        # To save on typing, stick the keyword parameters into a dictionary
+        # for linear_mixing.
+        linmixparams = {
+            'max_iter':max_iter,
+            'ediff':ediff,
+            'mix':mix,
+            'print_residual':False
+            }
+        # First step: ensure current state is self-consistent
+        en = self.linear_mixing(**linmixparams)
+        # Decide if we want to go up or down, or stay put.
+        # Energy of flipping one from down to up.
+        nsites = self.nsites
+        if self.nelectdown >= 1 and self.nelectup <= nsites-1:
+            # Can we do such a flip?
+            if verbose: print("Checking first up spin flip.")
+            kagup = self.copy()
+            kagup.move_electrons(1,-1)
+            enup = kagup.linear_mixing(**linmixparams)
+        else:
+            # If not, set energy to very large value so we don't cross it.
+            enup = 1e15
+        # Energy of flipping from up to down
+        if self.nelectup >= 1 and self.nelectdown <= nsites-1:
+            # Can we do such a flip?
+            if verbose: print("Checking first spin down flip.")
+            kagdown = self.copy()
+            kagdown.move_electrons(-1,1)
+            endown = kagdown.linear_mixing(**linmixparams)
+        else:
+            # If not, set energy to very large value so we don't cross it.
+            endown = 1e15
+        # Check what we want to do.
+        # If current energy is minimum, stay put
+        if en <= enup and en <= endown:
+            if verbose: print("Already at energy minimum.")
+            return
+        # Else, take the path of most energy drop.
+        if enup < endown:
+            go_up = True
+        elif enup > endown:
+            go_up = False
+        else: # We have a tie.
+            # Go towards zero magnetization,
+            # going up if at zero.
+            go_up = self.get_magnetization() <= 0
+        # Adjust electrons in that direction.
+        if go_up:
+            if verbose: print("Searching upwards.")
+            self.set_electrons(nup=kagup.nup,ndown=kagup.ndown)
+            en = enup
+        else:
+            if verbose: print("Searching downwards.")
+            self.set_electrons(nup=kagdown.nup,ndown=kagdown.ndown)
+            en = endown
+        #Iterate in that direction until a minimum is found.
+        at_edge = lambda : ((go_up and (self.nelectup > nsites-1 and
+                                       self.nelectdown < 1))
+                            or ((not go_up) and (self.nelectdown > nsites-1 and
+                                                 self.nelectup < 1)))
+        while not at_edge():
+            # Create the lattice with the next spin flip.
+            kagnext = self.copy()
+            if go_up:
+                kagnext.move_electrons(1,-1)
+            else:
+                kagnext.move_electrons(-1,1)
+            if verbose: print("Checking magnetization "+str(self.get_magnetization()))
+            ennext = kagnext.linear_mixing(**linmixparams)
+            # Check if the energy is higher.
+            if ennext >= en:
+                # If so, we're done
+                break
+            # Otherwise, set the current to the trial step
+            self.set_electrons(nup=kagnext.nup,ndown=kagnext.ndown)
+            en = ennext
+        # Done
+        if verbose: print("Found energy minimum.")
+        return
+    #
     def move_electrons(self,up=0,down=0):
         """
         Add or subtract spin up and down electrons, based on eigenstates.
