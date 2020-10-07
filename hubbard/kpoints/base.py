@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2020-10-02
+Last Modified: 2020-10-07
 Author: Bernard Field
 """
 
@@ -55,7 +55,7 @@ class HubbardKPoints():
                 changed later.
             u - number. Hubbard U parameter.
             nup,ndown,kwargs - arguments for set_electrons.
-        Last Modified: 2020-09-16
+        Last Modified: 2020-10-07
         """
         if nsites <= 0:
             raise ValueError("Number of sites must be positive.")
@@ -72,6 +72,9 @@ class HubbardKPoints():
         if not hasattr(self, 'dims'):
             self.dims = 2
             """Number of dimensions in momentum-space."""
+        if not hasattr(self, 'reclat'):
+            self.reclat = np.eye(self.dims)
+            """Reciprocal lattice vectors. Used for plotting."""
         # Initialise the k-mesh as a single k-point.
         self.set_kmesh(*([1]*self.dims))
     #
@@ -1106,7 +1109,7 @@ class HubbardKPoints():
     #
     ## PLOTTERS
     #
-    def plot_bands(self, klist, nsec, T=None, emin=None, emax=None,
+    def plot_bands(self, klist, nsec, T=0, emin=None, emax=None,
                    klabels=None):
         """
         Plot the band structure, for some given k-points.
@@ -1125,8 +1128,31 @@ class HubbardKPoints():
             klabels - length len(klist) list of strings, marking the tick
                 labels.
         Effects: Makes a plot.
+
+        Last Modified: 2020-10-07
         """
-        pass
+        # Get the band structure.
+        kp, bands = self.band_structure(klist, nsec)
+        # Shift the bands by the chemical potential
+        bands -= self.chemical_potential(T)
+        # Convert the k-points from fractional to cartesian coords,
+        # then turn it into a 1D distance.
+        kp = np.matmul(kp, self.reclat)
+        klen = np.cumsum(np.linalg.norm(np.diff(kp, axis=0, prepend=kp[0:1]),
+                                        axis=1))
+        # Identify the tic locations
+        tics = klen[np.arange(0, nsec*(len(klist)-1)+1, nsec)]
+        # Plot spin up bands
+        for b in bands[:,0,:].transpose():
+            plt.plot(klen,b,color='r')
+        # Plot spin down bands
+        for b in bands[:,1,:].transpose():
+            plt.plot(klen,b,color='b')
+        plt.ylim(emin, emax)
+        plt.xticks(tics, klabels)
+        plt.grid(axis='x')
+        plt.axhline(y=0, color='0.5', linewidth=0.5, zorder=1.5)
+        plt.show()
     #
     def plot_spin(self,marker_scale=1):
         """
