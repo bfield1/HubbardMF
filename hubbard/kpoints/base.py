@@ -1019,8 +1019,8 @@ class HubbardKPoints():
         # Initialise
         eup = np.empty(nsites * self.kpoints)
         edown = np.empty(nsites * self.kpoints)
-        vup = np.empty((nsites, nsites * self.kpoints))
-        vdown = np.empty((nsites, nsites * self.kpoints))
+        vup = np.empty((nsites, nsites * self.kpoints),dtype='complex')
+        vdown = np.empty((nsites, nsites * self.kpoints),dtype='complex')
         # Solve for the single-electron energy levels at each k-point
         for n, k in enumerate(self.kmesh):
             kin = self.get_kinetic(k)

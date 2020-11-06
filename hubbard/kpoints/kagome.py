@@ -6,7 +6,7 @@ Mean field Hubbard model of the Kagome lattice, in a single unit cell.
 Has periodic boundary conditions and explores full Brillouin zone.
 
 Created: 2020-09-17
-Last Modified: 2020-10-07
+Last Modified: 2020-11-06
 Author: Bernard Field
 """
 
@@ -15,7 +15,7 @@ from math import cos, pi
 
 import numpy as np
 
-from hubbard.kagome import kagome_coordinates
+from hubbard.kagome import kagome_coordinates, kagome_adjacency_tensor
 from hubbard.kpoints.base import HubbardKPoints
 
 class KagomeHubbardKPoints(HubbardKPoints):
@@ -23,16 +23,17 @@ class KagomeHubbardKPoints(HubbardKPoints):
     #
     ## IO
     #
-    def __init__(self,u=0,t=1,nup=0,ndown=0,allow_fractions=False,**kwargs):
+    def __init__(self,u=0,t=1,nup=0,ndown=0,allow_fractions=False,
+                 nrows=1,ncols=1,**kwargs):
         """
         Create a kagome lattice and initialises things.
 
-        Last Modified: 2020-10-07
+        Last Modified: 2020-11-06
         """
-        self.nrows = 1
-        self.ncols = 1
+        self.nrows = nrows
+        self.ncols = ncols
         self.reclat = np.array([[np.sqrt(3)/2, 1/2], [-np.sqrt(3)/2, 1/2]])
-        super().__init__(3, u=u, nup=nup, ndown=ndown,
+        super().__init__(3*nrows*ncols, u=u, nup=nup, ndown=ndown,
                          allow_fractions=allow_fractions, **kwargs)
         self.set_kinetic(t)
     #
@@ -108,19 +109,42 @@ class KagomeHubbardKPoints(HubbardKPoints):
         """
         Return the kinetic energy matrix for a given momentum.
 
+        For the single-unit-cell case,
         I use the real form of the matrix to avoid unnecessary complex numbers.
         This results in a gauge transformation on the eigenvectors, which
         only matters if you care about the phase (which I don't).
         
+        For the supercell, I need to use the complex formulation.
+        
         Input: k, a length 2 list-like of numbers, representing the momentum
                 in fractional coordinates.
-        Output: a (3,3) symmetric real ndarray.
-        Last Modified: 2020-09-22
+        Output: a (nsites,nsites) symmetric real ndarray.
+        Last Modified: 2020-11-06
         """
-        c0 = -2 * self.t * cos(pi*k[0])
-        c1 = -2 * self.t * cos(pi*k[1])
-        c2 = -2 * self.t * cos(pi*(k[0]-k[1]))
-        return np.array([[0,c0,c1],[c0,0,c2],[c1,c2,0]])
+        if self.nsites == 3:
+            # The simple case of a single unit cell.
+            c0 = -2 * self.t * cos(pi*k[0])
+            c1 = -2 * self.t * cos(pi*k[1])
+            c2 = -2 * self.t * cos(pi*(k[0]-k[1]))
+            return np.array([[0,c0,c1],[c0,0,c2],[c1,c2,0]])
+        else:
+            # Multiple unit cells. Need to include phase factors at boundaries.
+            kinetic = self.kin
+            # e^ikb1
+            kinetic[self.masks[0]] *= np.exp(complex(0,2*np.pi*k[0]))
+            # e^ikb2
+            kinetic[self.masks[1]] *= np.exp(complex(0,2*np.pi*k[1]))
+            # e^ik(b2-b1)
+            kinetic[self.masks[2]] *= np.exp(complex(0,2*np.pi*(k[1]-k[0])))
+            # e^-ik(b2-b1)
+            kinetic[self.masks[3]] *= np.exp(complex(0,-2*np.pi*(k[1]-k[0])))
+            # e^-ikb2
+            kinetic[self.masks[4]] *= np.exp(complex(0,-2*np.pi*k[1]))
+            # e^-ikb1
+            kinetic[self.masks[5]] *= np.exp(complex(0,-2*np.pi*k[0]))
+            # Add back in the previously removed double-counted part.
+            kinetic[self.two_mask] += self.kin[self.two_mask]
+            return kinetic
     #
     ## PLOTTERS
     #
@@ -130,11 +154,74 @@ class KagomeHubbardKPoints(HubbardKPoints):
     def set_kinetic(self,t):
         """
         Set the hopping constant for the Hamiltonian.
+        
+        If nrows or ncols > 1, also pre-calculates the connectivity.
 
         Inputs: t - real number. Hopping constant.
         Effect: sets self.t to t
-        Last Modified: 2020-09-17
+        Last Modified: 2020-11-06
         """
         self.t = t
-        
-    
+        # Pre-compute as much as possible if we have a non-simple case.
+        if self.nsites > 3:
+            kinshape = (self.nsites,self.nsites)
+            # Get the Gamma-point matrix.
+            tensor = kagome_adjacency_tensor(self.nrows,self.ncols)
+            # The case when nrows or ncols == 1 has some extra problems,
+            # because you will get two different processes (one within the
+            # supercell, and one from without) occupying the same matrix
+            # element. These have a value of 2 in tensor.
+            # We shall separate them out so we can treat them separately.
+            self.two_mask = np.reshape((tensor == 2),kinshape,order='F')
+            tensor[tensor==2] = 1
+            self.kin = np.reshape(-t*tensor,kinshape,order='F').astype('complex')
+            # Also have to cast to complex dtype, to allow complex numbers.
+            # The k-dependence can be done as an elementwise multiplication.
+            # Find where we cross over the boundaries.
+            self.masks = []
+            nrows = self.nrows
+            ncols = self.ncols
+            idrow = np.identity(nrows,dtype='bool').reshape(1,nrows,1,1,nrows,1)
+            idcol = np.identity(ncols,dtype='bool').reshape(1,1,ncols,1,1,ncols)
+            # (0,i,j)->(1,i-1,j), (2,i,j)->(1,i-1,j+1), needs e^ikb1
+            m = np.zeros((3,nrows,1,3,nrows,1), dtype='bool')
+            m[0,0,0,1,nrows-1,0] = True
+            m = m*idcol
+            if ncols > 1:
+                m[(2,0,np.arange(ncols-1),1,nrows-1,np.arange(1,ncols))] = True
+            self.masks.append(np.reshape(m, kinshape, order='F'))
+            # (0,i,j)->(2,i,j-1) (1,i,j)->(2,i+1,j-1), needs e^ikb2
+            m = np.zeros((3,1,ncols,3,1,ncols), dtype='bool')
+            m[0,0,0,2,0,ncols-1] = True
+            m = m*idrow
+            if nrows > 1:
+                m[(1,np.arange(nrows-1),0,2,np.arange(1,nrows),ncols-1)] = True
+            self.masks.append(np.reshape(m, kinshape, order='F'))
+            # (1,i,j)->(2,i+1,j-1) corner, needs e^ik(b2-b1)
+            m = np.zeros((3,nrows,ncols,3,nrows,ncols), dtype='bool')
+            m[1,nrows-1,0,2,0,ncols-1] = True
+            self.masks.append(np.reshape(m, kinshape, order='F'))
+            # (2,i,j)->(1,i-1,j+1) corner, needs e^-ik(b2-b1)
+            m = np.zeros((3,nrows,ncols,3,nrows,ncols), dtype='bool')
+            m[2,0,ncols-1,1,nrows-1,0] = True
+            self.masks.append(np.reshape(m, kinshape, order='F'))
+            # (2,i,j)->(0,i,j+1), (2,i,j)->(1,i-1,j+1), needs e^-ikb2
+            m = np.zeros((3,1,ncols,3,1,ncols), dtype='bool')
+            m[2,0,ncols-1,0,0,0] = True
+            m = m*idrow
+            if nrows > 1:
+                m[(2,np.arange(1,nrows),ncols-1,1,np.arange(nrows-1),0)] = True
+            self.masks.append(np.reshape(m, kinshape, order='F'))
+            # (1,i,j)->(0,i+1,j), (1,i,j)->(2,i+1,j-1), needs e^-ikb1
+            m = np.zeros((3,nrows,1,3,nrows,1), dtype='bool')
+            m[1,nrows-1,0,0,0,0] = True
+            m = m*idcol
+            if ncols > 1:
+                m[(1,nrows-1,np.arange(1,ncols),2,0,np.arange(ncols-1))] = True
+            self.masks.append(np.reshape(m, kinshape, order='F'))
+            # Sanity check
+            # The masks should not overlap
+            assert (sum([a.sum() for a in self.masks]) ==
+                    np.sum(self.masks[0] | self.masks[1] | self.masks[2] |
+                           self.masks[3] | self.masks[4] | self.masks[5]))
+            

@@ -88,7 +88,7 @@ kagome.plot_bands(klist, 10, T=0.1, klabels=klabels)
 
 # Making your own model
 
-You can create your own custom models by specifying the kinetic energy part of the Hamiltonian. See the set\_kinetic method, and either the get\_kinetic method or kinetic attribute for k-point and Gamma-point-only systems.
+You can create your own custom models by specifying the kinetic energy part of the Hamiltonian. See the set\_kinetic method, and either the get\_kinetic method or kin attribute for k-point and Gamma-point-only systems.
 If you have something which depends on spin, or a total energy offset, then you will need to modify the potential/interaction part of the Hamiltonian too. See the \_potential method.
 If you want to plot the results in real-space, you will need to specify the get\_coordinates method.
 If you want to plot in reciprocal space (such as with plot\_bands), you should set the reciprocal lattice vectors. See the reclat attribute.
