@@ -46,7 +46,8 @@ class KagomeHubbardKPoints(HubbardKPoints):
         Last Modified: 2020-09-17
         """
         kagome = KagomeHubbardKPoints(u=self.u, t=self.t, nup=self.nup.copy(),
-                                      ndown=self.ndown.copy(),
+                                      ndown=self.ndown.copy(), nrows=self.nrows,
+                                      ncols=self.ncols,
                                       allow_fractions=self.allow_fractions)
         kagome.set_kmesh(self.kmesh)
         kagome.set_mag(self.mag)
