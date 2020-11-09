@@ -6,7 +6,7 @@ Mean field Hubbard model of the Kagome lattice, in a single unit cell.
 Has periodic boundary conditions and explores full Brillouin zone.
 
 Created: 2020-09-17
-Last Modified: 2020-11-06
+Last Modified: 2020-11-09
 Author: Bernard Field
 """
 
@@ -119,7 +119,7 @@ class KagomeHubbardKPoints(HubbardKPoints):
         Input: k, a length 2 list-like of numbers, representing the momentum
                 in fractional coordinates.
         Output: a (nsites,nsites) symmetric real ndarray.
-        Last Modified: 2020-11-06
+        Last Modified: 2020-11-09
         """
         if self.nsites == 3:
             # The simple case of a single unit cell.
@@ -129,7 +129,7 @@ class KagomeHubbardKPoints(HubbardKPoints):
             return np.array([[0,c0,c1],[c0,0,c2],[c1,c2,0]])
         else:
             # Multiple unit cells. Need to include phase factors at boundaries.
-            kinetic = self.kin
+            kinetic = self.kin.copy()
             # e^ikb1
             kinetic[self.masks[0]] *= np.exp(complex(0,2*np.pi*k[0]))
             # e^ikb2
