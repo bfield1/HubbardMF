@@ -4,7 +4,7 @@
 Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 
 Created: 2020-08-04
-Last Modified: 2020-10-02
+Last Modified: 2020-11-10
 Author: Bernard Field
 """
 
@@ -63,7 +63,7 @@ def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500):
 
 def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
                T=None,interval=500,positive_only=True,repeats=1,verbose=False,
-               mmin=None,mmax=None):
+               mmin=None,mmax=None,quiet=False):
     """
     For a given set of parameters, steps through different nup and ndown ratios.
     Relaxes the Hubbard systems, and returns all the results as a list.
@@ -85,10 +85,11 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
             Defaults to 0 if positive_only else -mmax.
         mmax - optional number. Maximum magnetization to look at.
             Defaults to the smaller of n or nsites.
+        quiet - Boolean. Verbose overrules.
     
     Output: list of Hubbard objects.
 
-    Last Modified: 2020-08-11
+    Last Modified: 2020-11-10
     """
     # Initialise
     hub_list = [] # Results list
@@ -106,12 +107,13 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
     # Pick an alpha
     alpha = choose_alpha(nsites,min(nupmax,nsites/2))*10
     # Progress bar
-    if not verbose:
+    show_progress = (not verbose) and (not quiet)
+    if show_progress:
         if nupmin == nupmax:
             progress.new(60,repeats,0)
         else:
             progress.new(60,nupmax,nupmin)
-    else:
+    elif verbose:
         print("Nup from "+str(nupmin)+" to "+str(nupmax))
     # Iterate
     samples,stepsize = np.linspace(nupmin,nupmax,nsteps,retstep=True)
@@ -132,18 +134,18 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
                     # If interrupt, give a half second to wait for a second interrupt.
                     if verbose: print("Skipping...")
                     sleep(0.5)
-                if not verbose:
+                if show_progress:
                     if nupmin==nupmax: progress.update(i+1)
                     else: progress.update(nup+i/repeats*stepsize)
     except KeyboardInterrupt:
         # If we interrupt, still return cleanly.
-        if not verbose:
+        if show_progress:
             print('X',end='')
-        else:
+        elif verbose:
             print("Aborting.")
-    if not verbose:
+    if show_progress:
         progress.end()
-    else:
+    elif verbose:
         print("Finished.")
     # Return
     return hub_list
