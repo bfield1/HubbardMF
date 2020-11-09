@@ -6,7 +6,7 @@ Mean field Hubbard model of the Kagome lattice, in a single unit cell.
 Has periodic boundary conditions and explores full Brillouin zone.
 
 Created: 2020-09-17
-Last Modified: 2020-11-09
+Last Modified: 2020-11-10
 Author: Bernard Field
 """
 
@@ -60,13 +60,14 @@ class KagomeHubbardKPoints(HubbardKPoints):
 
         Inputs: f - string, filename.
         Output: KagomeHubbardKPoints object.
-        Last Modified: 2020-09-17
+        Last Modified: 2020-11-10
         """
         # Load the file
         with open(f) as file:
             di = json.load(file) # di for dictionary
         # Create a KagomeHubbardKPoints object
-        kagome = cls(u=di['u'], t=di['t'], nup=np.asarray(di['nup']),
+        kagome = cls(u=di['u'], t=di['t'], nrows=di.get('nrows',1),
+                     ncols=di.get('ncols',1), nup=np.asarray(di['nup']),
                      ndown=np.asarray(di['ndown']),
                      allow_fractions=di['allow_fractions'])
         kagome.set_kmesh(np.asarray(di['kmesh']))
@@ -79,12 +80,14 @@ class KagomeHubbardKPoints(HubbardKPoints):
 
         Inputs: f - string, filename.
         Writes a test file f.
-        Last Modified: 2020-09-17
+        Last Modified: 2020-11-10
         """
         with open(f,mode='w') as file:
             json.dump({
                 'u' : self.u,
                 't' : self.t,
+                'nrows' : self.nrows,
+                'ncols' : self.ncols,
                 'mag' : self.mag,
                 'nup' : self.nup.tolist(),
                 'ndown' : self.ndown.tolist(),
