@@ -6,7 +6,7 @@ Mean field Hubbard model of the Kagome lattice, in a single unit cell.
 Has periodic boundary conditions and explores full Brillouin zone.
 
 Created: 2020-09-17
-Last Modified: 2020-11-10
+Last Modified: 2020-11-11
 Author: Bernard Field
 """
 
@@ -17,6 +17,8 @@ import numpy as np
 
 from hubbard.kagome import kagome_coordinates, kagome_adjacency_tensor
 from hubbard.kpoints.base import HubbardKPoints
+
+rng = np.random.default_rng()
 
 class KagomeHubbardKPoints(HubbardKPoints):
     """Mean field Hubbard model of the Kagome lattice, in a single unit cell."""
@@ -60,7 +62,7 @@ class KagomeHubbardKPoints(HubbardKPoints):
 
         Inputs: f - string, filename.
         Output: KagomeHubbardKPoints object.
-        Last Modified: 2020-11-10
+        Last Modified: 2020-11-11
         """
         # Load the file
         with open(f) as file:
@@ -72,6 +74,10 @@ class KagomeHubbardKPoints(HubbardKPoints):
                      allow_fractions=di['allow_fractions'])
         kagome.set_kmesh(np.asarray(di['kmesh']))
         kagome.set_mag(di['mag'])
+        if 'kin' in di:
+            kagome.set_kinetic(di['t'], force_generic=True)
+            kagome.kin = np.asarray(di['kin'], dtype='complex')
+            kagome.modified_kin = True
         return kagome
     #
     def save(self,f):
@@ -80,10 +86,9 @@ class KagomeHubbardKPoints(HubbardKPoints):
 
         Inputs: f - string, filename.
         Writes a test file f.
-        Last Modified: 2020-11-10
+        Last Modified: 2020-11-11
         """
-        with open(f,mode='w') as file:
-            json.dump({
+        di = {
                 'u' : self.u,
                 't' : self.t,
                 'nrows' : self.nrows,
@@ -93,7 +98,11 @@ class KagomeHubbardKPoints(HubbardKPoints):
                 'ndown' : self.ndown.tolist(),
                 'allow_fractions' : self.allow_fractions,
                 'kmesh' : self.kmesh.tolist(),
-                }, file)
+                }
+        if self.modified_kin:
+            di['kin'] = self.kin.real.tolist()
+        with open(f,mode='w') as file:
+            json.dump(di, file)
     #
     ## ELECTRON DENSITY MODIFIERS
     #
@@ -123,9 +132,9 @@ class KagomeHubbardKPoints(HubbardKPoints):
         Input: k, a length 2 list-like of numbers, representing the momentum
                 in fractional coordinates.
         Output: a (nsites,nsites) symmetric real ndarray.
-        Last Modified: 2020-11-09
+        Last Modified: 2020-11-11
         """
-        if self.nsites == 3:
+        if self.nsites == 3 and not self.modified_kin:
             # The simple case of a single unit cell.
             c0 = -2 * self.t * cos(pi*k[0])
             c1 = -2 * self.t * cos(pi*k[1])
@@ -155,7 +164,7 @@ class KagomeHubbardKPoints(HubbardKPoints):
     #
     ## SETTERS
     #
-    def set_kinetic(self,t):
+    def set_kinetic(self, t, force_generic=False):
         """
         Set the hopping constant for the Hamiltonian.
         
@@ -163,11 +172,12 @@ class KagomeHubbardKPoints(HubbardKPoints):
 
         Inputs: t - real number. Hopping constant.
         Effect: sets self.t to t
-        Last Modified: 2020-11-06
+        Last Modified: 2020-11-11
         """
         self.t = t
+        self.modified_kin = force_generic
         # Pre-compute as much as possible if we have a non-simple case.
-        if self.nsites > 3:
+        if self.nsites > 3 or force_generic:
             kinshape = (self.nsites,self.nsites)
             # Get the Gamma-point matrix.
             tensor = kagome_adjacency_tensor(self.nrows,self.ncols)
@@ -228,4 +238,36 @@ class KagomeHubbardKPoints(HubbardKPoints):
             assert (sum([a.sum() for a in self.masks]) ==
                     np.sum(self.masks[0] | self.masks[1] | self.masks[2] |
                            self.masks[3] | self.masks[4] | self.masks[5]))
-            
+    #
+    def set_kinetic_random(self,t,wt=0,we=0):
+        """
+        Creates a kinetic energy matrix with some random noise in it.
+
+        Random noise is uniform. Noise ofhopping constants centred on
+        t and noise of on-site energy centred on 0.
+
+        Inputs: t - number. Hopping constant.
+            wt - number. Width of the random noise of hopping.
+            we - number. Width of the random noise of on-site energy.
+        Effects: sets self.kin
+
+        Last Modified: 2020-11-11
+        """
+        # Get the regular kinetic energy set
+        self.set_kinetic(t, force_generic=True)
+        self.modified_kin = True
+        # Now apply random noise.
+        # Get some random noise for the whole matrix.
+        noise = rng.random(self.kin.shape)*wt - wt/2
+        # Zero out elements which should be zero.
+        noise[self.kin == 0] = 0
+        # Make the noise matrix Hermitian.
+        # Zero out the lower triangle, otherwise next step will be sum of two
+        # random variates which is not a uniform distribution.
+        noise = np.triu(noise) 
+        noise = noise + noise.transpose()
+        # Apply noise to the kinetic energy.
+        self.kin += noise
+        # Now get the noisy diagonal for on-site energy.
+        self.kin += np.diag(rng.random(len(self.kin))*we - we/2)
+        # Done.
