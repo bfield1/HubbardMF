@@ -54,7 +54,7 @@ class KagomeHubbardKPoints(HubbardKPoints):
         kagome.set_kmesh(self.kmesh)
         kagome.set_mag(self.mag)
         if self.modified_kin:
-            kagome.set_kinetic(t, force_generic=True)
+            kagome.set_kinetic(self.t, force_generic=True)
             kagome.kin = self.kin.copy()
         return kagome
     #
