@@ -6,7 +6,7 @@ Mean field Hubbard model of the Kagome lattice, in a single unit cell.
 Has periodic boundary conditions and explores full Brillouin zone.
 
 Created: 2020-09-17
-Last Modified: 2020-11-11
+Last Modified: 2020-11-13
 Author: Bernard Field
 """
 
@@ -45,7 +45,7 @@ class KagomeHubbardKPoints(HubbardKPoints):
 
         Output: KagomeHubbardKPoints object.
 
-        Last Modified: 2020-09-17
+        Last Modified: 2020-11-13
         """
         kagome = KagomeHubbardKPoints(u=self.u, t=self.t, nup=self.nup.copy(),
                                       ndown=self.ndown.copy(), nrows=self.nrows,
@@ -53,6 +53,9 @@ class KagomeHubbardKPoints(HubbardKPoints):
                                       allow_fractions=self.allow_fractions)
         kagome.set_kmesh(self.kmesh)
         kagome.set_mag(self.mag)
+        if self.modified_kin:
+            kagome.set_kinetic(t, force_generic=True)
+            kagome.kin = self.kin.copy()
         return kagome
     #
     @classmethod
