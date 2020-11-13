@@ -6,15 +6,13 @@ Mean field Hubbard model of Kagome lattice. Gamma point only.
 Periodic boundary conditions are assumed.
 
 Created: 2020-07-03
-Last Modified: 2020-09-17
+Last Modified: 2020-11-13
 Author: Bernard Field
 """
 
 import numpy as np
 import json
 from hubbard.base import Hubbard
-
-rng = np.random.default_rng()
 
 class KagomeHubbard(Hubbard):
     #
@@ -229,8 +227,9 @@ class KagomeHubbard(Hubbard):
             we - number. Width of the random noise of on-site energy.
         Effects: sets self.kin
 
-        Last Modified: 2020-07-15
+        Last Modified: 2020-11-13
         """
+        rng = np.random.default_rng()
         # Get the regular kinetic energy set.
         self.set_kinetic(t)
         # Get some random noise for the whole matrix.

@@ -18,7 +18,6 @@ import numpy as np
 from hubbard.kagome import kagome_coordinates, kagome_adjacency_tensor
 from hubbard.kpoints.base import HubbardKPoints
 
-rng = np.random.default_rng()
 
 class KagomeHubbardKPoints(HubbardKPoints):
     """Mean field Hubbard model of the Kagome lattice, in a single unit cell."""
@@ -254,8 +253,9 @@ class KagomeHubbardKPoints(HubbardKPoints):
             we - number. Width of the random noise of on-site energy.
         Effects: sets self.kin
 
-        Last Modified: 2020-11-11
+        Last Modified: 2020-11-13
         """
+        rng = np.random.default_rng()
         # Get the regular kinetic energy set
         self.set_kinetic(t, force_generic=True)
         self.modified_kin = True

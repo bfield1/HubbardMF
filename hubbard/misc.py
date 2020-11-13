@@ -3,7 +3,6 @@
 
 import numpy as np
 
-rng = np.random.default_rng()
 
 class ConvergenceWarning(UserWarning):
     """
@@ -62,8 +61,9 @@ def random_density(n,total,alpha=None):
     Output: numpy array of length n of random numbers between 0 and 1
         which sum to total.
 
-    Last Modified: 2020-07-09
+    Last Modified: 2020-11-13
     """
+    rng = np.random.default_rng()
     # Impossible cases
     if n < 1 or total < 0 or total > n:
         raise ValueError("n or total is out of bounds.")
@@ -138,8 +138,9 @@ def bounded_random_numbers_with_sum_dirichlet(n,total,alpha):
         alpha - positive number, parameter for Dirichlet. Larger is less spread.
     Output: (n,) ndarray of numbers between 0 and 1 which sum to total.
 
-    Last Modified: 2020-07-09
+    Last Modified: 2020-11-13
     """
+    rng = np.random.default_rng()
     # Catch impossible cases.
     if n<1 or total<0 or total>n:
         raise ValueError("n or total are out of bounds.")
@@ -171,8 +172,9 @@ def random_points_density(n,total):
         total - non-negative number. Value list should sum to.
     Output: (n,) ndarray of numbers between 0 and 1 which sum to total.
 
-    Last Modified: 2020-08-17
+    Last Modified: 2020-11-13
     """
+    rng = np.random.default_rng()
     # Initialise empty array.
     density = np.zeros(n)
     # Set some rando sites to 1.
