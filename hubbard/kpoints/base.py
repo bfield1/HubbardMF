@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2020-10-07
+Last Modified: 2020-11-30
 Author: Bernard Field
 """
 
@@ -1223,16 +1223,18 @@ class HubbardKPoints():
         # Show the plot.
         plt.show()
     #
-    def plot_spincharge(self,marker_scale=1):
+    def plot_spincharge(self,marker_scale=1,scale=1):
         """
         Plots the spin and charge density.
         Marker size/area is proportional to the charge density.
         Marker colour is proportional to the spin density (yellow up, blue down).
 
         Inputs: marker_scale - number, optional. Factor to scale markersize by.
+            scale - number (0,1], optional. Spin density is plotted from 
+                -scale to scale.
         Effect: Makes a plot
 
-        Last Modified: 2020-08-10
+        Last Modified: 2020-11-30
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
@@ -1243,7 +1245,7 @@ class HubbardKPoints():
         # Get the spin moment.
         spin = self.nup - self.ndown
         # Plot
-        plt.scatter(x,y,chg*36*(marker_scale**2),spin,cmap="BrBG_r",vmin=-1,vmax=1)
+        plt.scatter(x,y,chg*36*(marker_scale**2),spin,cmap="BrBG_r",vmin=-scale,vmax=scale)
         plt.gca().set_aspect('equal')
         cb = plt.colorbar()
         cb.ax.set_title('Spin')
