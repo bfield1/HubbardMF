@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2020-11-30
+Last Modified: 2021-02-09
 Author: Bernard Field
 """
 
@@ -949,7 +949,7 @@ class HubbardKPoints():
             N - number of occupied states (electrons * kpoints).
             energies - sorted list/ndarray of all eigenenergies.
         Output: the chemical potential, a number
-        Last Modified: 2020-07-29
+        Last Modified: 2021-02-09
         """
         if T < 0:
             raise ValueError("T cannot be negative.")
@@ -981,7 +981,10 @@ class HubbardKPoints():
             # Perform a binary search to find mu.
             first_sweep = True
             start_low = (N < nguess)
-            while abs(N-nguess) > 1e-12:
+            while abs(N-nguess) > 1e-12 and step > np.spacing(mu):
+                # Stop either when we have equality or our step size has
+                # shrunk into oblivion and we cannot get any closer at
+                # machine precision.
                 # Check if we have found a cross-over point.
                 if first_sweep:
                     if ((start_low and N > nguess) or
