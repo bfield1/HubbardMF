@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-02-09
+Last Modified: 2021-02-17
 Author: Bernard Field
 """
 
@@ -824,7 +824,7 @@ class HubbardKPoints():
 
         Outputs: two numbers, the Fermi level for spin up and spin down states.
 
-        Last Modified: 2020-09-16
+        Last Modified: 2021-02-17
         """
         # Solve for the single-electron energy levels.
         eup, edown, _, _ = self._eigensystem()
@@ -838,14 +838,14 @@ class HubbardKPoints():
         # Get spin up
         if Nup == 0:
             fermi_up = eup[0]
-        elif midpoint:
+        elif midpoint and len(eup) < Nup:
             fermi_up = (eup[Nup] + eup[Nup-1])/2
         else:
             fermi_up = eup[Nup-1]
         # get spin down
         if Ndown == 0:
             fermi_down = edown[0]
-        elif midpoint:
+        elif midpoint and len(edown) < Ndown:
             fermi_down = (edown[Ndown] + edown[Ndown-1])/2
         else:
             fermi_down = edown[Ndown-1]
@@ -1100,12 +1100,12 @@ class HubbardKPoints():
             potdown is potential for spin down electrons.
             offset is a real number, to be added to the total energy.
 
-        Last Modified: 2020-08-10
+        Last Modified: 2021-02-17
         """
         # V = U(nup<ndown> + ndown<nup> - <nup><ndown>)
         # Also, the magnetic field shifts the energy of up and down electrons.
         # We have <nup> and <ndown>
-        offset = -self.u * np.sum(self.nup*self.ndown) # -u <nup><ndown>
+        offset = -np.sum(self.u*self.nup*self.ndown) # -u <nup><ndown>
         potup = self.u*np.diag(self.ndown) - self.mag * np.eye(self.nsites)
         potdown = self.u*np.diag(self.nup) + self.mag * np.eye(self.nsites)
         return potup, potdown, offset
@@ -1166,14 +1166,14 @@ class HubbardKPoints():
         Inputs: marker_scale - number, optional. Factor to scale markersize by.
         Effects: Makes a plot.
 
-        Last Modified: 2020-08-10
+        Last Modified: 2021-02-17
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
         x = coords[:,0]
         y = coords[:,1]
         # Get the spin moment.
-        spin = self.nup - self.ndown
+        spin = (self.nup - self.ndown)[:len(coords)]
         # Convert sign of spin to colour.
         color_up = 'y'
         color_down = 'b'
@@ -1191,14 +1191,14 @@ class HubbardKPoints():
         Inputs: marker_scale - number, optional. Factor to scale markersize by.
         Effect: Makes a plot.
 
-        Last Modified: 2020-08-10
+        Last Modified: 2021-02-17
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
         x = coords[:,0]
         y = coords[:,1]
         # Get the charge density.
-        chg = self.nup + self.ndown
+        chg = (self.nup + self.ndown)[:len(coords)]
         # Default marker size is 6. Default marker area is 6**2=36.
         plt.scatter(x,y,chg*36*(marker_scale**2))
         plt.gca().set_aspect('equal')
@@ -1244,9 +1244,9 @@ class HubbardKPoints():
         x = coords[:,0]
         y = coords[:,1]
         # Get the charge density.
-        chg = self.nup + self.ndown
+        chg = (self.nup + self.ndown)[:len(coords)]
         # Get the spin moment.
-        spin = self.nup - self.ndown
+        spin = (self.nup - self.ndown)[:len(coords)]
         # Plot
         plt.scatter(x,y,chg*36*(marker_scale**2),spin,cmap="BrBG_r",vmin=-scale,vmax=scale)
         plt.gca().set_aspect('equal')
