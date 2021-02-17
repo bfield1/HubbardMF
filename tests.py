@@ -137,15 +137,108 @@ class TestBaseKPoints(unittest.TestCase):
         self.assertEqual(hub.local_magnetic_moment(), 0.5**2, msg=msg)
         hub.set_electrons(nup=[0.75,0.25], ndown=[0,1])
         self.assertEqual(hub.local_magnetic_moment(), 0.75**2, msg=msg)
+    #
+    def test_set_kmesh(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(1)
+        # Monkhorst
+        with self.subTest(mesh=(2,2),method='monkhorst'):
+            hub.set_kmesh(2,2)
+            msg = " did not have the expected value."
+            self.assertEqual(hub.kpoints, 4, msg="kpoints"+msg)
+            # The order of k-points is unimportant.
+            kmesh2 = [[0.25,0.25],[0.25,0.75],[0.75,0.25],[0.75,0.75]]
+            self.assertTrue(all([any([np.all(k == kp) for k in hub.kmesh]) for kp in kmesh2]),
+                            msg="kmesh"+msg)
+        with self.subTest(mesh=(2,3), method='monkhorst'):
+            hub.set_kmesh(2,3)
+            self.assertEqual(hub.kpoints, 6, msg="kpoints"+msg)
+            kmesh2 = [[0.25,0],[0.25,1/3],[0.25,2/3],[0.75,0],[0.75,1/3],[0.75,2/3]]
+            self.assertTrue(all([any([np.all(k == kp) for k in hub.kmesh]) for kp in kmesh2]),
+                            msg="kmesh"+msg)
+        with self.subTest(mesh=(2,2), method='gamma'):
+            hub.set_kmesh(2,2,method='gamma')
+            self.assertEqual(hub.kpoints, 4, msg="kpoints"+msg)
+            kmesh2 = [[0,0],[0.5,0],[0,0.5],[0.5,0.5]]
+            self.assertTrue(all([any([np.all(k == kp) for k in hub.kmesh]) for kp in kmesh2]),
+                            msg="kmesh"+msg)
+        with self.subTest(mesh=(2,3), method='gamma'):
+            hub.set_kmesh(2,3,method='gamma')
+            self.assertEqual(hub.kpoints, 6, msg="kpoints"+msg)
+            kmesh2 = [[0,0],[0,1/3],[0,2/3],[0.5,0],[0.5,1/3],[0.5,2/3]]
+            self.assertTrue(all([any([np.all(k == kp) for k in hub.kmesh]) for kp in kmesh2]),
+                            msg="kmesh"+msg)
+        with self.subTest(name='Set with list'):
+            kmesh2 = [[0,0],[0.1,0],[0.3,0.3]]
+            hub.set_kmesh(kmesh2)
+            self.assertEqual(hub.kpoints, 3, msg="kpoints"+msg)
+            self.assertTrue(np.all(hub.kmesh == kmesh2), msg="kpoints"+msg)
+    #
+    def test_set_u(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(1, u=3)
+        msg = "u did not have the expected value."
+        self.assertEqual(hub.u, 3, msg=msg)
+        hub.set_u(1.5)
+        self.assertEqual(hub.u, 1.5, msg=msg)
+    #
+    def test_set_mag(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(1)
+        msg = "mag did not have the expected value."
+        hub.set_mag(12)
+        self.assertEqual(hub.mag, 12, msg=msg)
+    #
+    def test_potential(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(2)
+        msg = " did not have the expected value." 
+        with self.subTest(u=0, nup=[0,0], ndown=[0,0], mag=0):
+            potup, potdown, offset = hub._potential()
+            self.assertEqual(offset, 0, msg="offset"+msg)
+            self.assertTrue(np.all(potup == np.zeros((2,2))), msg="potup"+msg)
+            self.assertTrue(np.all(potdown == np.zeros((2,2))), msg="potdown"+msg)
+        with self.subTest(u=0, nup=[0,0], ndown=[0,0], mag=1):
+            hub.set_mag(1)
+            potup, potdown, offset = hub._potential()
+            self.assertEqual(offset, 0, msg="offset"+msg)
+            self.assertTrue(np.all(potup == -np.eye(2)), msg="potup"+msg)
+            self.assertTrue(np.all(potdown == np.eye(2)), msg="potdown"+msg)
+        with self.subTest(u=1, nup=[0,0], ndown=[0,0], mag=0):
+            hub.set_mag(0)
+            hub.set_u(1)
+            potup, potdown, offset = hub._potential()
+            self.assertEqual(offset, 0, msg="offset"+msg)
+            self.assertTrue(np.all(potup == np.zeros((2,2))), msg="potup"+msg)
+            self.assertTrue(np.all(potdown == np.zeros((2,2))), msg="potdown"+msg)
+        with self.subTest(u=4, nup=[0.25,0.75], ndown=[0,0], mag=0):
+            hub.set_u(4)
+            hub.set_electrons(nup=[0.25,0.75])
+            potup, potdown, offset = hub._potential()
+            self.assertEqual(offset, 0, msg="offset"+msg)
+            self.assertTrue(np.all(potup == np.zeros((2,2))), msg="potup"+msg)
+            self.assertTrue(np.all(potdown == [[1,0],[0,3]]), msg="potdown"+msg)
+        with self.subTest(u=4, nup=[0.25,0.75], ndown=[1,0], mag=0):
+            hub.set_electrons(ndown=[1,0])
+            potup, potdown, offset = hub._potential()
+            self.assertEqual(offset, -1, msg="offset"+msg)
+            self.assertTrue(np.all(potup == [[4,0],[0,0]]), msg="potup"+msg)
+            self.assertTrue(np.all(potdown == [[1,0],[0,3]]), msg="potdown"+msg)
+    #
+    def test_chemical_potential_from_states(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(1)
+        msg = "chemical potential did not have the expected value."
+        en = [-1, 1, 2, 5]
+        with self.subTest(T=0, N=2):
+            self.assertEqual(hub._chemical_potential_from_states(0, 2, en), 1, msg=msg)
+        with self.subTest(T=0, N=4):
+            self.assertEqual(hub._chemical_potential_from_states(0, 4, en), 5, msg=msg)
+        with self.subTest(T=0, N=0):
+            # Not properly defined what mu should be with N=0,
+            # but it should be less than or equal to the bottom state.
+            self.assertLessEqual(hub._chemical_potential_from_states(0, 0, en), -1, msg=msg)
+        
 
 """
 Other things to test:
-    _potential
     _chemical_potential_from_states
     _energy_from_states
-    set_kmesh
-    set_u
-    set_mag
     toggle_allow_fractions
     set_electrons with allow_fractions=True
 """

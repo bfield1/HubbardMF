@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-02-09
+Last Modified: 2021-02-18
 Author: Bernard Field
 """
 
@@ -949,7 +949,7 @@ class HubbardKPoints():
             N - number of occupied states (electrons * kpoints).
             energies - sorted list/ndarray of all eigenenergies.
         Output: the chemical potential, a number
-        Last Modified: 2021-02-09
+        Last Modified: 2021-02-18
         """
         if T < 0:
             raise ValueError("T cannot be negative.")
@@ -962,7 +962,10 @@ class HubbardKPoints():
             # occupation. N must be an integer.
             N = int(round(N))
             # Get the N'th eigenenergy.
-            mu = energies[N-1]
+            if N == 0:
+                mu = energies[0]
+            else:
+                mu = energies[N-1]
         else:
             # Get a first guess of the chemical potential.
             mu = energies[int(round(N))-1]
