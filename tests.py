@@ -349,14 +349,66 @@ class TestBaseKPoints(unittest.TestCase):
         hub.toggle_allow_fractions()
         self.assertTrue(all(hub.nup == nup), msg=msg)
         self.assertTrue(all(hub.ndown == ndown), msg=msg)
+    #
+    def test_toggle_allow_fractions_fractional_density(self):
+        nup = [0.6, 0.6]
+        ndown = [0.8, 0.9]
+        hub = hubbard.kpoints.base.HubbardKPoints(2, allow_fractions=True)
+        hub.set_electrons(nup=nup, ndown=ndown)
+        msg = " was not set correctly."
+        self.assertTrue(all(hub.nup == nup), msg="nup"+msg)
+        self.assertTrue(all(hub.ndown == ndown), msg="ndown"+msg)
+        self.assertAlmostEqual(hub.nelectup, 1.2, msg="nelectup"+msg)
+        self.assertAlmostEqual(hub.nelectdown, 1.7, msg="nelectdown"+msg)
+        hub.toggle_allow_fractions()
+        msg = " did not toggle correctly."
+        self.assertFalse(hub.allow_fractions, msg="allow_fractions"+msg)
+        self.assertEqual(hub.nelectup, 1, msg="nelectup"+msg)
+        self.assertEqual(hub.nelectdown, 2, msg="nelectdown"+msg)
+        self.assertTrue(all(hub.nup == [0.5,0.5]), msg="nup"+msg)
+        self.assertTrue(all(hub.ndown == [1,1]), msg="ndown"+msg)
+    #
+    def test_init_fractional(self):
+        nup = [0.6, 0.6]
+        ndown = [0.8, 0.9]
+        hub = hubbard.kpoints.base.HubbardKPoints(2, allow_fractions=True, nup=nup, ndown=ndown)
+        msg = " was not set correctly."
+        self.assertTrue(all(hub.nup == nup), msg="nup"+msg)
+        self.assertTrue(all(hub.ndown == ndown), msg="ndown"+msg)
+        self.assertAlmostEqual(hub.nelectup, 1.2, msg="nelectup"+msg)
+        self.assertAlmostEqual(hub.nelectdown, 1.7, msg="nelectdown"+msg)
+    #
+    def test_set_electrons_fractional_list(self):
+        nup = [0.6, 0.6]
+        ndown = [0.8, 0.9]
+        hub = hubbard.kpoints.base.HubbardKPoints(2, allow_fractions=True)
+        hub.set_electrons(nup=nup, ndown=ndown)
+        msg = " was not set correctly."
+        self.assertTrue(all(hub.nup == nup), msg="nup"+msg)
+        self.assertTrue(all(hub.ndown == ndown), msg="ndown"+msg)
+        self.assertAlmostEqual(hub.nelectup, 1.2, msg="nelectup"+msg)
+        self.assertAlmostEqual(hub.nelectdown, 1.7, msg="nelectdown"+msg)
+    #
+    def test_set_electrons_fractional_uniform(self):
+        nup = 0.1
+        ndown = 1.3
+        hub = hubbard.kpoints.base.HubbardKPoints(2, allow_fractions=True)
+        hub.set_electrons(nup=nup, ndown=ndown, method='uniform')
+        msg = " was not set currectly."
+        self.assertEqual(hub.nelectup, nup, msg="nelectip"+msg)
+        self.assertEqual(hub.nelectdown, ndown, msg="nelectdown"+msg)
+        self.assertTrue(all(hub.nup == nup/2), msg="nup"+msg)
+        self.assertTrue(all(hub.ndown == ndown/2), msg="ndown"+msg)
+    #
+    def test_set_electrons_fractional_random(self):
+        nup = 0.1
+        ndown = 1.3
+        hub = hubbard.kpoints.base.HubbardKPoints(2, allow_fractions=True)
+        hub.set_electrons(nup=nup, ndown=ndown, method='random')
+        msg = " was not set currectly."
+        self.assertEqual(hub.nelectup, nup, msg="nelectip"+msg)
+        self.assertEqual(hub.nelectdown, ndown, msg="nelectdown"+msg)
 
-
-
-"""
-Other things to test:
-    toggle_allow_fractions
-    set_electrons with allow_fractions=True
-"""
 
 if __name__ == "__main__":
     unittest.main()
