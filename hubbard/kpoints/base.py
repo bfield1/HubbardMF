@@ -551,7 +551,13 @@ class HubbardKPoints():
                          " is not an integer. Rounding to "+str(nelect)+".")
                     # Re-scale the density
                     sca = nelect/sum(n)
-                    density *= sca
+                    if sca < 1:
+                        # Scale the electrons
+                        density *= sca
+                    else:
+                        # Scale the holes
+                        sca = (nsites - nelect)/(nsites - sum(n))
+                        density = 1 - sca + sca*density
             else:
                 nelect = sum(n)
         # Check that values are within bounds.
