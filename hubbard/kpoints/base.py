@@ -1366,7 +1366,7 @@ class HubbardKPoints():
             to this value if provided. Toggles allow_fractions otherwise.
         Output: Boolean, new value of allow_fractions.
 
-        Last Modified: 2020-09-11
+        Last Modified: 2021-02-18
         """
         if val is None:
             # If val not set, we toggle.
@@ -1384,20 +1384,21 @@ class HubbardKPoints():
             self.nelectdown = int(round(self.nelectdown))
             # Rescale the electron densities to match.
             if nelectup_old > 0:
-                self.nup *= self.nelectup/nelectup_old
+                sca = self.nelectup/nelectup_old
+                if sca < 1:
+                    self.nup *= sca
+                elif sca > 1:
+                    # Do scaling of hole density instead.
+                    sca = (self.nsites - self.nelectup)/(self.nsites - nelectup_old)
+                    self.nup = 1 - sca + sca * self.nup
             if nelectdown_old > 0:
-                self.ndown *= self.nelectdown/nelectdown_old
-            # Ensure no values exceed 1.
-            while np.any(self.nup > 1):
-                warn("New electron occupation exceeds 1. Reducing "
-                     "number of spin up electrons.")
-                self.nelectup -= 1
-                self.nup *= self.nelectup/(self.nelectup+1)
-            while np.any(self.ndown > 1):
-                warn("New electron occupation exceeds 1. Reducing "
-                     "number of spin down electrons.")
-                self.nelectdown -= 1
-                self.ndown *= self.nelectdown/(self.nelectdown+1)
+                sca = self.nelectdown/nelectdown_old
+                if sca < 1:
+                    self.ndown *= sca
+                elif sca > 1:
+                    # Do scaling of hole density instead.
+                    sca = (self.nsites - self.nelectdown)/(self.nsites - nelectdown_old)
+                    self.ndown = 1 - sca + sca * self.ndown
             # Now toggle the flag.
             self.allow_fractions = False
         return self.allow_fractions
