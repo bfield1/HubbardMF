@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 
 import unittest
+from math import pi, cos
 
 import numpy as np
 
 import hubbard.kpoints.base
+import hubbard.kpoints.kagome
 
 class TestBaseKPoints(unittest.TestCase):
     """
@@ -410,5 +412,117 @@ class TestBaseKPoints(unittest.TestCase):
         self.assertEqual(hub.nelectdown, ndown, msg="nelectdown"+msg)
 
 
+class TestKagomeKPoints(unittest.TestCase):
+    """Tests hubbard.kpoints.kagome"""
+    def test_aaa_init(self):
+        """Tests if initialisation works at all."""
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints()
+        msg = " not initialised to expected value."
+        self.assertEqual(hub.u, 0, msg="u"+msg)
+        self.assertEqual(hub.nsites, 3, msg="nsites"+msg)
+        self.assertEqual(hub.mag, 0, msg="mag"+msg)
+        self.assertEqual(hub.dims, 2, msg="dims"+msg)
+        self.assertTrue(np.all(hub.reclat == np.array([[np.sqrt(3)/2,1/2],[-np.sqrt(3)/2,1/2]])),
+                        msg="reclat"+msg)
+        self.assertTrue(np.all(hub.kmesh == np.array([[0,0]])), msg="kmesh"+msg)
+        self.assertEqual(hub.kpoints, 1, msg="kpoints"+msg)
+        self.assertEqual(hub.nelectup, 0, msg="nelectup"+msg)
+        self.assertEqual(hub.nelectdown, 0, msg="nelectdown"+msg)
+        self.assertTrue(np.all(hub.nup == [0,0,0]), msg="nup"+msg)
+        self.assertTrue(np.all(hub.ndown == [0,0,0]), msg="ndown"+msg)
+        self.assertFalse(hub.allow_fractions)
+        self.assertEqual(hub.nrows, 1, msg="nrows"+msg)
+        self.assertEqual(hub.ncols, 1, msg="ncols"+msg)
+        self.assertEqual(hub.t, 1, msg="t"+msg)
+    #
+    def test_get_coordinates(self):
+        # I'm too lazy at the moment to test if the output is right.
+        # I'll just go by the shape for now.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=1, ncols=1)
+        msg = "kagome coordinates not right shape."
+        coords = hub.get_coordinates()
+        self.assertEqual(coords.shape, (3, 2), msg=msg)
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=4)
+        coords = hub.get_coordinates()
+        self.assertEqual(coords.shape, (3*2*4, 2), msg=msg)
+    #
+    def test_kinetic_1cell(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints()
+        msg = "kinetic energy matrix was not what was expected"
+        # kin1 and kin2 are equivalent up to a gauge transformation.
+        def kin1(k):
+            return -2*np.array([[0, cos(pi*k[0]), cos(pi*k[1])],
+                                [cos(pi*k[0]), 0, cos(pi*(k[1]-k[0]))],
+                                [cos(pi*k[1]), cos(pi*(k[1]-k[0])), 0]])
+        def kin2(k):
+            return -np.array([[0, 1+np.exp(2j*pi*k[0]), 1+np.exp(2j*pi*k[1])],
+                              [1+np.exp(-2j*pi*k[0]), 0, 1+np.exp(2j*pi*(k[1]-k[0]))],
+                              [1+np.exp(-2j*pi*k[1]), 1+np.exp(-2j*pi*(k[1]-k[0])), 0]])
+        for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
+            for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
+                with self.subTest(k=[k0,k1], t=1):
+                    k = [k0,k1]
+                    kin = hub.get_kinetic(k)
+                    self.assertTrue(np.all(kin == kin1(k)) or np.all(kin == kin2(k)), msg=msg)
+        hub.set_kinetic(2)
+        for k in [[0,0],[0.5,0.7]]:
+            with self.subTest(k=[k0,k1], t=2):
+                kin = hub.get_kinetic(k)
+                self.assertTrue(np.all(kin == 2*kin1(k)) or np.all(kin == 2*kin2(k)), msg=msg)
+    #
+    def test_kinetic_2cell(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=1)
+        msg = "kinetic energy matrix was not what was expected"
+        def kin1(k):
+            arr = np.array([[0, 1, 1+np.exp(2j*pi*k[1]), 0, np.exp(2j*pi*k[0]), 0],
+                            [0, 0, 1, 1, 0, np.exp(2j*pi*k[1])],
+                            [0, 0, 0, 0, np.exp(-2j*pi*(k[1]-k[0])), 0],
+                            [0, 0, 0, 0, 1, 1+np.exp(2j*pi*k[1])],
+                            [0, 0, 0, 0, 0, 1],
+                            [0, 0, 0, 0, 0, 0]])
+            return -(arr + arr.conjugate().transpose())
+        # First, check that k=0 gives the right result
+        kin = hub.get_kinetic([0,0])
+        self.assertTrue(np.all(kin == kin1([0,0])), msg=msg)
+        # Once this test passes, check k-dependence.
+        for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
+            for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
+                with self.subTest(k=[k0,k1], t=1):
+                    k = [k0,k1]
+                    kin = hub.get_kinetic(k)
+                    self.assertTrue(np.all(kin == kin1(k)), msg=msg)
+        hub.set_kinetic(2)
+        for k in [[0,0],[0.5,0.7]]:
+            with self.subTest(k=[k0,k1], t=2):
+                kin = hub.get_kinetic(k)
+                self.assertTrue(np.all(kin == 2*kin1(k)), msg=msg)
+    #
+    def test_set_kinetic_random(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints()
+        hub.set_kinetic_random(t=1, wt=1, we=1)
+        kin0 = hub.get_kinetic([0,0])
+        ts = np.array([kin0[0,1].real/(-2), kin0[0,2].real/(-2), kin0[1,2].real/(-2)])
+        es = np.diag(kin0.real)
+        self.assertTrue(all((ts >= 0.5) & (ts <= 1.5)), msg="Random t's out of range.")
+        self.assertTrue(all((es >= -0.5) & (es <= 0.5)), msg="Random e's out of range.")
+        def kin1(k):
+            return np.array([[es[0], -ts[0]*(1+np.exp(2j*pi*k[0])), -ts[1]*(1+np.exp(2j*pi*k[1]))],
+                             [-ts[0]*(1+np.exp(-2j*pi*k[0])), es[1], -ts[2]*(1+np.exp(2j*pi*(k[1]-k[0])))],
+                             [-ts[1]*(1+np.exp(-2j*pi*k[1])), -ts[2]*(1+np.exp(-2j*pi*(k[1]-k[0]))), es[2]]])
+        msg = "kinetic energy matrix was not what was expected"
+        for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
+            for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
+                k = [k0,k1]
+                kin = hub.get_kinetic(k)
+                self.assertAlmostEqual(np.sum(np.abs(kin - kin1(k))), 0, msg=msg)
+
+        
+"""
+Tests to write:
+    copy
+    save
+    load
+    all the things in base which I couldn't do before
+"""
 if __name__ == "__main__":
     unittest.main()
