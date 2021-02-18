@@ -518,7 +518,7 @@ class HubbardKPoints():
                 Dirichlet alpha parameter. Default is chosen automatically.
         Outputs: density - ndarray of shape (3*nrows*ncols,)
             nelect - integer.
-        Last Modified; 2020-08-17
+        Last Modified: 2021-02-18
         """
         # A useful constant
         nsites = self.nsites
@@ -541,7 +541,7 @@ class HubbardKPoints():
                                                             alpha=alpha,**kwargs)
         else:
             # n is the electron density.
-            density = np.asarray(n)
+            density = np.asarray(n, dtype=float)
             if len(density) != nsites:
                 raise ValueError("n has the wrong length.")
             if not self.allow_fractions:
@@ -549,6 +549,9 @@ class HubbardKPoints():
                 if abs(nelect - sum(n)) > 1e-10:
                     warn("Number of electrons "+str(sum(n))+
                          " is not an integer. Rounding to "+str(nelect)+".")
+                    # Re-scale the density
+                    sca = nelect/sum(n)
+                    density *= sca
             else:
                 nelect = sum(n)
         # Check that values are within bounds.
@@ -942,6 +945,9 @@ class HubbardKPoints():
     def _chemical_potential_from_states(self,T,N,energies):
         """
         Determine chemical potential for a given temperature and set of states.
+
+        I note that my T=0 algorithm sometimes gives different results to the
+        limit T->0.
         
         Inputs: T - nonnegative number, temperature.
                 If T==0, simply returns the energy of the
@@ -967,6 +973,8 @@ class HubbardKPoints():
             else:
                 mu = energies[N-1]
         else:
+            # Convert to array so it works in fermi_distribution
+            energies = np.asarray(energies)
             # Get a first guess of the chemical potential.
             mu = energies[int(round(N))-1]
             nguess = fermi_distribution(energies,T,mu).sum()

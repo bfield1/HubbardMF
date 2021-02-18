@@ -233,12 +233,127 @@ class TestBaseKPoints(unittest.TestCase):
             # Not properly defined what mu should be with N=0,
             # but it should be less than or equal to the bottom state.
             self.assertLessEqual(hub._chemical_potential_from_states(0, 0, en), -1, msg=msg)
-        
+        with self.subTest(T=1, N=2):
+            self.assertAlmostEqual(hub._chemical_potential_from_states(1, 2, en), 1.5820802069520141, msg=msg)
+        with self.subTest(T=0.5, N=2.5):
+            self.assertAlmostEqual(hub._chemical_potential_from_states(0.5, 2.5, en), 2.172994535823183, msg=msg)
+        en = [0, 1, 2, 3]
+        with self.subTest(T=2, N=2):
+            self.assertAlmostEqual(hub._chemical_potential_from_states(2, 2, en), 1.5, msg=msg)
+        with self.subTest(T=0.01, N=2.5):
+            self.assertAlmostEqual(hub._chemical_potential_from_states(0.01, 2.5, en), 2, msg=msg)
+        with self.subTest(T=1, N=0):
+            self.assertAlmostEqual(hub._chemical_potential_from_states(1, 0, en), -29, msg=msg)
+    #
+    def test_energy_from_states(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(3)
+        msg = "energy not expected value."
+        eup = [0, 1, 1]
+        edown = [-0.5, 1, 2]
+        with self.subTest(name="No electrons, 1 kpoint"):
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 0, msg=msg)
+            en = hub._energy_from_states(eup, edown, 3)
+            self.assertEqual(en, 3, msg=msg)
+        with self.subTest(name="Some electrons, 1 kpoint"):
+            hub.set_electrons(nup=1, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 0.5, msg=msg)
+            hub.set_electrons(nup=2, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 1.5, msg=msg)
+        with self.subTest(name="Some electrons, 2 kpoints"):
+            hub.set_kmesh(2,1)
+            eup = [0, 0, 1, 1, 1, 1]
+            edown = [-0.5, -0.5, 1, 1, 2, 2]
+            hub.set_electrons(nup=1, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 0.5, msg=msg)
+            hub.set_electrons(nup=2, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 1.5, msg=msg)
+    #
+    def test_energy_from_states_fractional(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(3, allow_fractions=True)
+        msg = "energy not expected value."
+        eup = [0, 1, 1]
+        edown = [-0.5, 1, 2]
+        with self.subTest(name="No electrons, 1 kpoint"):
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 0, msg=msg)
+            en = hub._energy_from_states(eup, edown, 3)
+            self.assertEqual(en, 3, msg=msg)
+        with self.subTest(name="Some electrons, 1 kpoint"):
+            hub.set_electrons(nup=1, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 0.5, msg=msg)
+            hub.set_electrons(nup=1.5, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 1, msg=msg)
+            hub.set_electrons(nup=1.5, ndown=2.5)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 2, msg=msg)
+        with self.subTest(name="Some electrons, 2 kpoints"):
+            hub.set_kmesh(2,1)
+            eup = [0, 0, 1, 1, 1, 1]
+            edown = [-0.5, -0.5, 1, 1, 2, 2]
+            hub.set_electrons(nup=1, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 0.5, msg=msg)
+            hub.set_electrons(nup=1.5, ndown=2)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 1, msg=msg)
+            hub.set_electrons(nup=1.5, ndown=2.5)
+            en = hub._energy_from_states(eup, edown, 0)
+            self.assertEqual(en, 2, msg=msg)
+    #
+    def test_energy_from_states_mu(self):
+        hub = hubbard.kpoints.base.HubbardKPoints(3)
+        msg = "energy not expected value."
+        with self.subTest(kpoints=1):
+            eup = [0, 2, 4, 6]
+            edown = [1, 3, 5, 7]
+            en = hub._energy_from_states(eup, edown, 0, T=0.01, mu=3)
+            self.assertAlmostEqual(en, 0+1+2+3/2, msg=msg)
+            en = hub._energy_from_states(eup, edown, 0, T=0.01, mu=3.5)
+            self.assertAlmostEqual(en, 0+1+2+3, msg=msg)
+            en = hub._energy_from_states(eup, edown, -2, T=0.01, mu=3.5)
+            self.assertAlmostEqual(en, 0+1+2+3-2, msg=msg)
+        with self.subTest(kpoints=2):
+            hub.set_kmesh(2,1)
+            eup = [0, 2, 4, 6]*2
+            edown = [1, 3, 5, 7]*2
+            en = hub._energy_from_states(eup, edown, 0, T=0.01, mu=3)
+            self.assertAlmostEqual(en, 0+1+2+3/2, msg=msg)
+            en = hub._energy_from_states(eup, edown, 0, T=0.01, mu=3.5)
+            self.assertAlmostEqual(en, 0+1+2+3, msg=msg)
+    #
+    def test_toggle_allow_fractions(self):
+        msg = "Toggling allow_fractions didn't work."
+        hub = hubbard.kpoints.base.HubbardKPoints(1, allow_fractions=False)
+        self.assertFalse(hub.allow_fractions,
+                         msg="Unexpected initial value for allow_fractions")
+        hub.toggle_allow_fractions()
+        self.assertTrue(hub.allow_fractions, msg=msg)
+        hub.toggle_allow_fractions()
+        self.assertFalse(hub.allow_fractions, msg=msg)
+    #
+    def test_toggle_allow_fractions_integer_density(self):
+        nup = [0.25, 0.75]
+        ndown = [1, 0]
+        msg = "Electron density has been inadvertently changed by toggling allow_fractions."
+        hub = hubbard.kpoints.base.HubbardKPoints(2, nup=nup, ndown=ndown, allow_fractions=False)
+        hub.toggle_allow_fractions()
+        self.assertTrue(all(hub.nup == nup), msg=msg)
+        self.assertTrue(all(hub.ndown == ndown), msg=msg)
+        hub.toggle_allow_fractions()
+        self.assertTrue(all(hub.nup == nup), msg=msg)
+        self.assertTrue(all(hub.ndown == ndown), msg=msg)
+
+
 
 """
 Other things to test:
-    _chemical_potential_from_states
-    _energy_from_states
     toggle_allow_fractions
     set_electrons with allow_fractions=True
 """
