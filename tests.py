@@ -515,6 +515,48 @@ class TestKagomeKPoints(unittest.TestCase):
                 k = [k0,k1]
                 kin = hub.get_kinetic(k)
                 self.assertAlmostEqual(np.sum(np.abs(kin - kin1(k))), 0, msg=msg)
+    #
+    def test_copy(self):
+        # If two Hubbard systems are identical, they should have the same
+        # electron density, eigenvalues and eigenvectors.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=3, allow_fractions=True,
+                                   nup=2.5, ndown=12, u=5, t=2, method='random')
+        hub.set_kmesh(5,4, method='gamma')
+        hub.set_mag(1)
+        hub2 = hub.copy()
+        self.assertTrue(np.all(hub.nup == hub2.nup),
+                        msg="nup was not properly copied.")
+        self.assertTrue(np.all(hub.ndown == hub2.ndown),
+                        msg="ndown was not properly copied.")
+        eup, edown, vup, vdown = hub._eigensystem()
+        eup2, edown2, vup2, vdown2 = hub2._eigensystem()
+        msg = "do not match between the copies."
+        self.assertEqual(np.abs(eup - eup2).sum(), 0, msg="eup"+msg)
+        self.assertEqual(np.abs(edown - edown2).sum(), 0, msg="edown"+msg)
+        self.assertEqual(np.abs(vup - vup2).sum(), 0, msg="vup"+msg)
+        self.assertEqual(np.abs(vdown - vdown2).sum(), 0, msg="vdown"+msg)
+    #
+    def test_copy_random(self):
+        # As above, but uses set_kinetic_random
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=3, allow_fractions=True,
+                                   nup=2.5, ndown=12, u=5, t=2, method='random')
+        hub.set_kinetic_random(2, wt=1, we=2)
+        hub.set_kmesh(5,4, method='gamma')
+        hub.set_mag(1)
+        hub2 = hub.copy()
+        self.assertTrue(np.all(hub.nup == hub2.nup),
+                        msg="nup was not properly copied.")
+        self.assertTrue(np.all(hub.ndown == hub2.ndown),
+                        msg="ndown was not properly copied.")
+        eup, edown, vup, vdown = hub._eigensystem()
+        eup2, edown2, vup2, vdown2 = hub2._eigensystem()
+        msg = "do not match between the copies."
+        self.assertEqual(np.abs(eup - eup2).sum(), 0, msg="eup"+msg)
+        self.assertEqual(np.abs(edown - edown2).sum(), 0, msg="edown"+msg)
+        self.assertEqual(np.abs(vup - vup2).sum(), 0, msg="vup"+msg)
+        self.assertEqual(np.abs(vdown - vdown2).sum(), 0, msg="vdown"+msg)
+
+
 
 class TestBaseKagomeKPoints(unittest.TestCase):
     """
@@ -977,7 +1019,6 @@ Tests to write:
     set_electrons with other methods
 all the things in base which I couldn't do before
     anderson_mixing
-    pulay_mixing
     band_structure
     density_of_states
     eigenstates
