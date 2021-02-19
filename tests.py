@@ -2,6 +2,7 @@
 
 import unittest
 from math import pi, cos
+import os
 
 import numpy as np
 
@@ -556,6 +557,45 @@ class TestKagomeKPoints(unittest.TestCase):
         self.assertEqual(np.abs(vup - vup2).sum(), 0, msg="vup"+msg)
         self.assertEqual(np.abs(vdown - vdown2).sum(), 0, msg="vdown"+msg)
 
+class TestKagomeKPointsIO(unittest.TestCase):
+    """Tests file reading and writing methods of KagomeHubbardKPoints."""
+    ddir = './fixtures/'
+    #
+    def test_load(self):
+        # A pre-generated file is present.
+        # I'll test if I can load it successfully and if I get results
+        # previously obtained.
+        msg = " was not properly copied."
+        ddir = self.ddir+"kagome1"
+        try:
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints.load(ddir+'.json')
+        except FileNotFoundError:
+            print("Testing file not found: "+ddir+".json")
+            self.skipTest("Testing file not found: "+ddir+".json")
+        with self.subTest("Density test"):
+            try:
+                nup2 = np.load(ddir+'_nup.npy')
+                ndown2 = np.load(ddir+'_ndown.npy')
+            except FileNotFoundError:
+                print("Testing files for density not found.")
+            else:
+                self.assertAlmostEqual(np.abs(hub.nup - nup2).sum(), 0, msg="nup"+msg)
+                self.assertAlmostEqual(np.abs(hub.ndown - ndown2).sum(), 0, msg="ndown"+msg)
+        with self.subTest("Eigensystem test"):
+            try:
+                eup2 = np.load(ddir+'_eup.npy')
+                edown2 = np.load(ddir+'_edown.npy')
+                vup2 = np.load(ddir+'_vup.npy')
+                vdown2 = np.load(ddir+'_vdown.npy')
+            except FileNotFoundError:
+                print("Testing files of eigensystem not found.")
+            else:
+                eup, edown, vup, vdown = hub._eigensystem()
+                self.assertEqual(np.abs(eup - eup2).sum(), 0, msg="eup"+msg)
+                self.assertEqual(np.abs(edown - edown2).sum(), 0, msg="edown"+msg)
+                self.assertEqual(np.abs(vup - vup2).sum(), 0, msg="vup"+msg)
+                self.assertEqual(np.abs(vdown - vdown2).sum(), 0, msg="vdown"+msg)
+
 
 
 class TestBaseKagomeKPoints(unittest.TestCase):
@@ -1013,9 +1053,7 @@ class TestBaseKagomeKPoints(unittest.TestCase):
         
 """
 Tests to write:
-    copy
     save
-    load
     set_electrons with other methods
 all the things in base which I couldn't do before
     anderson_mixing
