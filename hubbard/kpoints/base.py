@@ -348,6 +348,16 @@ class HubbardKPoints():
             # Write new densities.
             nupnew = np.dot(coef[0:-1],densities_up)
             ndownnew = np.dot(coef[0:-1],densities_down)
+            # Floating point errors can take densities out of bounds in
+            # limiting cases. Catch these cases.
+            if self.nelectup == self.nsites:
+                nupnew = np.ones(self.nsites)
+            elif self.nelectup == 0:
+                nupnew = np.zeros(self.nsites)
+            if self.nelectdown == self.nsites:
+                ndownnew = np.ones(self.nsites)
+            elif self.nelectdown == 0:
+                ndownnew = np.zeros(self.nsites)
             # Check validity
             if (nupnew.max()>1 or nupnew.min()<0
                 or ndownnew.max()>1 or ndownnew.min()<0):
