@@ -361,7 +361,7 @@ class HubbardKPoints():
             # Check validity
             if (nupnew.max()>1 or nupnew.min()<0
                 or ndownnew.max()>1 or ndownnew.min()<0):
-                raise MixingError("Electron density out of bounds.")
+                raise MixingError("Electron density out of bounds. Try linear_mixing.")
             # Apply mixing.
             self.set_electrons(nupnew,ndownnew)
         # Done, but due to exceeding the maximum iterations.

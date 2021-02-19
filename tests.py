@@ -916,6 +916,53 @@ class TestBaseKagomeKPoints(unittest.TestCase):
             self.assertEqual(hub.nelectup, 12, msg=msg2)
             self.assertEqual(hub.nelectdown, 1, msg=msg2)
             self.assertLessEqual(hub.residual(), 1e-9, msg=msg3)
+    #
+    def test_pulay_mixing_T(self):
+        msg1 = "Density did not have expected value."
+        msg2 = "Number of electrons changed."
+        msg3 = "Residual not below expected threshold."
+        with self.subTest(test="U=0"):
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=2, u=0, allow_fractions=True)
+            hub.set_electrons(nup=4, ndown=3, method='random')
+            hub.set_kmesh(5,5)
+            hub.pulay_mixing(T=0.1, rdiff=1e-8)
+            self.assertAlmostEqual(np.abs(hub.nup - 3.5/12).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(np.abs(hub.ndown - 3.5/12).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(hub.nup.sum(), 3.5, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 3.5, msg=msg2)
+            self.assertAlmostEqual(hub.nelectup, 3.5, msg=msg2)
+            self.assertAlmostEqual(hub.nelectdown, 3.5, msg=msg2)
+        with self.subTest(test="Ferromagnetic"):
+            # With a very high U and appropriate low electron density
+            # and a nudge in the right direction, it should converge to a FM state
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=2, u=20, allow_fractions=True)
+            hub.set_electrons(nup=5.8, ndown=0.2, method='uniform')
+            hub.set_kmesh(5,5)
+            hub.pulay_mixing(T=0.1, rdiff=1e-8)
+            self.assertAlmostEqual(np.abs(hub.nup - 0.5).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(np.abs(hub.ndown - 0).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(hub.nup.sum(), 6, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 0, msg=msg2)
+            self.assertAlmostEqual(hub.nelectup, 6, msg=msg2)
+            self.assertAlmostEqual(hub.nelectdown, 0, msg=msg2)
+            self.assertLessEqual(hub.residual(T=0.1), 1e-8, msg=msg3)
+        with self.subTest(test="U=20"):
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=1, ncols=1, u=20, allow_fractions=True)
+            hub.set_electrons(nup=[1,0.9,0], ndown=[0,0.1,1])
+            hub.set_kmesh(5,5)
+            hub.pulay_mixing(rdiff=1e-8, T=0.1)
+            # Equality here will be measured quite loosely.
+            n1 = 0.99543792
+            n2 = 0.98899219
+            self.assertAlmostEqual(np.abs(hub.nup - [n1, n1, (1-n1)*2]).sum(),
+                                   0, msg=msg1, places=4)
+            self.assertAlmostEqual(np.abs(hub.ndown - [(1-n2)/2, (1-n2)/2, n2]).sum(),
+                                   0, msg=msg1, places=4)
+            self.assertAlmostEqual(hub.nup.sum(), 2, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 1, msg=msg2)
+            self.assertAlmostEqual(hub.nelectup, 2, msg=msg2)
+            self.assertAlmostEqual(hub.nelectdown, 1, msg=msg2)
+            self.assertLessEqual(hub.residual(0.1), 1e-8, msg=msg3)
 
 
 
