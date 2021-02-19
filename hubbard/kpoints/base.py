@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-02-18
+Last Modified: 2021-02-19
 Author: Bernard Field
 """
 
@@ -242,8 +242,16 @@ class HubbardKPoints():
             # Do mixing
             residual_up = nupnew - self.nup
             residual_down = ndownnew - self.ndown
-            self.set_electrons(nup=self.nup*(1-mix) + nupnew*mix,
-                               ndown=self.ndown*(1-mix) + ndownnew*mix)
+            # While analytically it should be impossible for the values to fall
+            # outside the allowed range, floating point errors can cause it
+            # to be outside by a tiniest smigeon. Catch these.
+            nupnext = self.nup*(1-mix) + nupnew*mix
+            ndownnext = self.ndown*(1-mix) + ndownnew*mix
+            nupnext[nupnext > 1] = 1
+            nupnext[nupnext < 0] = 0
+            ndownnext[ndownnext > 1] = 1
+            ndownnext[ndownnext < 0] = 0
+            self.set_electrons(nup=nupnext, ndown=ndownnext)
             # Check for convergence
             res = np.linalg.norm(np.concatenate((residual_up,residual_down)))
             de = abs(ennew - en)
@@ -518,7 +526,7 @@ class HubbardKPoints():
                 Dirichlet alpha parameter. Default is chosen automatically.
         Outputs: density - ndarray of shape (3*nrows*ncols,)
             nelect - integer.
-        Last Modified: 2021-02-18
+        Last Modified: 2021-02-19
         """
         # A useful constant
         nsites = self.nsites
@@ -536,12 +544,16 @@ class HubbardKPoints():
                          " is not an integer. Rounding to "+str(nelect)+".")
             else:
                 nelect = n
+            if nelect < 0 or nelect > nsites:
+                raise ValueError("The number of electrons is out of bounds.")
             # Generate an electron density by the appropriate method.
             density = self._electron_density_single_methods(nelect,method,up,
                                                             alpha=alpha,**kwargs)
         else:
             # n is the electron density.
             density = np.asarray(n, dtype=float)
+            if density.min() < 0 or density.max() > 1:
+                raise ValueError("The electron density is out of bounds.")
             if len(density) != nsites:
                 raise ValueError("n has the wrong length.")
             if not self.allow_fractions:
@@ -561,6 +573,7 @@ class HubbardKPoints():
             else:
                 nelect = sum(n)
         # Check that values are within bounds.
+        # We had checks earlier checking the inputs, but here we double check.
         if nelect < 0 or nelect > nsites:
             raise ValueError("The number of electrons is out of bounds.")
         if density.min() < 0 or density.max() > 1:

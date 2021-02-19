@@ -784,6 +784,7 @@ class TestBaseKagomeKPoints(unittest.TestCase):
     def test_linear_mixing(self):
         msg1 = "Density did not have expected value."
         msg2 = "Number of electrons changed."
+        msg3 = "Residual not below expected threshold."
         with self.subTest(test="U=0"):
             hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=2, u=0)
             hub.set_electrons(nup=4, ndown=7, method='random')
@@ -803,13 +804,34 @@ class TestBaseKagomeKPoints(unittest.TestCase):
             # Equality here will be measured quite loosely.
             n1 = 0.99543792
             n2 = 0.9889922
-            self.assertAlmostEqual(np.abs(hub.nup - [n1, n1, (1-n1)*2]).sum(), 0, msg=msg1)
-            self.assertAlmostEqual(np.abs(hub.ndown - [(1-n2)/2, (1-n2)/2, n2]).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(np.abs(hub.nup - [n1, n1, (1-n1)*2]).sum(),
+                                   0, msg=msg1, places=4)
+            self.assertAlmostEqual(np.abs(hub.ndown - [(1-n2)/2, (1-n2)/2, n2]).sum(),
+                                   0, msg=msg1, places=4)
             self.assertAlmostEqual(hub.nup.sum(), 2, msg=msg2)
             self.assertAlmostEqual(hub.ndown.sum(), 1, msg=msg2)
             self.assertEqual(hub.nelectup, 2, msg=msg2)
             self.assertEqual(hub.nelectdown, 1, msg=msg2)
-
+            self.assertLessEqual(hub.residual(), 1e-8, msg=msg3)
+        with self.subTest(test="Full nup"):
+            # With one electron channel full, it must be uniform.
+            # The other one must be uniform too.
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=2, u=10)
+            # The choice of ndown=1 and Gamma point only is deliberate, otherwise
+            # degeneracies interfere with finding the solution.
+            hub.set_electrons(nup=12, ndown=1, method='random')
+            hub.set_kmesh(1,1)
+            hub.linear_mixing(rdiff=1e-9)
+            self.assertAlmostEqual(np.abs(hub.nup - 1).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(np.abs(hub.ndown - 1/12).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(hub.nup.sum(), 12, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 1, msg=msg2)
+            self.assertEqual(hub.nelectup, 12, msg=msg2)
+            self.assertEqual(hub.nelectdown, 1, msg=msg2)
+            self.assertLessEqual(hub.residual(), 1e-9, msg=msg3)
+    #
+    
+        
 
         
 """
