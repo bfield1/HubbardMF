@@ -516,13 +516,322 @@ class TestKagomeKPoints(unittest.TestCase):
                 kin = hub.get_kinetic(k)
                 self.assertAlmostEqual(np.sum(np.abs(kin - kin1(k))), 0, msg=msg)
 
+class TestBaseKagomeKPoints(unittest.TestCase):
+    """
+    While TestKagomeKPoints tests methods unique to KagomeHubbardKPoints,
+    TestBaseKagomeKPoints tests method which appear in HubbardKPoints but
+    can only be tested in a child of HubbardKPoints.
+    """
+    # Eigenenergies of kagome TB model (U=0).
+    def e1(self, k):
+        return -1 - np.sqrt(4*(np.cos(pi*k[0])**2 + np.cos(pi*k[1])**2 + np.cos(pi*(k[1]-k[0]))**2) - 3)
+    def e2(self, k):
+        return -1 + np.sqrt(4*(np.cos(pi*k[0])**2 + np.cos(pi*k[1])**2 + np.cos(pi*(k[1]-k[0]))**2) - 3)
+    def e3(self, k):
+        return 2
+    #
+    def test_eigensystem_simplest(self):
+        """
+        U=0, single unit cell. Theoretical results known, at least for energies.
+        """
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints()
+        # First, Gamma point
+        eup, edown, vup, vdown = hub._eigensystem()
+        self.assertAlmostEqual(np.abs(eup - [-4, 2, 2]).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        # With U=0, the spin up and down Hamiltonians should be identical.
+        # If the linalg methods are deterministic, then this means their outputs
+        # should be identical.
+        # If it weren't for degeneracies, I could test the eigenvectors more directly.
+        # But because of degeneracy, direct tests are difficult.
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+        # Now, multiple k-points.
+        # Make a k-mesh
+        hub.set_kmesh(4,9)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+    #
+    def test_eigensystem_U0_biggercell(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=3)
+        # A larger unit cell can be treated like a single unit cell but with
+        # the Brillouin zone subdivided.
+        hub.set_kmesh(4,9)
+        kmesh = np.asarray(hub.kmesh)
+        arrs = []
+        for i in range(2):
+            for j in range(3):
+                arrs.append(kmesh/np.array([2,3]) + [i/2, j/3])
+        newkmesh = np.vstack(arrs)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in newkmesh]
+        eigen += [self.e2(k) for k in newkmesh]
+        eigen += [self.e3(k) for k in newkmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.") 
+    #
+    def test_eigensystem_U_uniform(self):
+        # U behaves like an on-site potential
+        # With uniform electron density, eigenvalues are just shifted vertically.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=2, nup=2, ndown=1, method='uniform')
+        hub.set_kmesh(3,2, method='gamma')
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen = np.asarray(sorted(eigen))
+        self.assertAlmostEqual(np.abs(eigen + 2/3 - eup).sum(), 0,
+                msg = "Did not get expected spin up eigenvalues.")
+        self.assertAlmostEqual(np.abs(eigen + 4/3 - edown).sum(), 0,
+                msg = "Did not get expected spin down eigenvalues.")
+        # Due to degeneracy and broken symmetry,
+        # we can't directly compare the eigenvectors.
+    def test_eigensystem_t0(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(t=0, u=1, nup=0, ndown=0)
+        msg = "Did not get expected eigenvalues."
+        eup, edown, vup, vdown = hub._eigensystem()
+        self.assertEqual(np.abs(eup - [0,0,0]).sum(), 0, msg=msg)
+        self.assertEqual(np.abs(edown - [0,0,0]).sum(), 0, msg=msg)
+        nup = [0.3, 0.6, 0.1]
+        ndown = [0.9, 1, 0.1]
+        hub.set_electrons(nup=nup, ndown=ndown)
+        eup, edown, vup, vdown = hub._eigensystem()
+        self.assertListEqual(eup.tolist(), sorted(ndown), msg=msg)
+        self.assertListEqual(edown.tolist(), sorted(nup), msg=msg)
+        # Because we have no degeneracies, and all states are localised,
+        # the eigenvectors are well-known.
+        vupexp = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]).transpose()
+        vdownexp = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]).transpose()
+        msg = "Did not get expected eigenvectors."
+        self.assertAlmostEqual(np.abs(vup - vupexp).sum(), 0, msg=msg)
+        self.assertAlmostEqual(np.abs(vdown - vdownexp).sum(), 0, msg=msg)
+    #
+    def test_energy(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=3)
+        hub.set_kmesh(5,5, method='gamma')
+        # No electrons. Energy should be zero.
+        msg = "Did not get expected energy."
+        self.assertAlmostEqual(hub.energy(), 0, msg=msg)
+        # Add one electron. This will fill the bottom band only.
+        hub.set_electrons(nup=1)
+        expected = sum([self.e1(k) for k in hub.kmesh])/hub.kpoints
+        self.assertAlmostEqual(hub.energy(), expected, msg=msg)
+        # Have two electrons, uniform, in the bottom band.
+        hub.set_electrons(nup=1, ndown=1, method='uniform')
+        # Expected: two lots of the last band energy,
+        # both shifted up by U*n=3*1/3 (times 2, for up and down),
+        # Minus U <nup> <ndown> = 1
+        expected = expected * 2 + 1
+        self.assertAlmostEqual(hub.energy(), expected, msg=msg)
+        # Now an arbitrary example.
+        hub.set_electrons(nup=[1,0.5,0.5], ndown=[0,0.5,0.5])
+        self.assertAlmostEqual(hub.energy(), -2.358189735881097, msg=msg)
+    #
+    def test_energy_T(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=3)
+        hub.set_kmesh(5,5, method='gamma')
+        # No electrons. Energy should be zero.
+        msg = "Did not get expected energy."
+        self.assertAlmostEqual(hub.energy(T=1), 0, msg=msg)
+        # Now some arbitrary examples.
+        hub.set_electrons(nup=[1,0.5,0.5], ndown=[0,0.5,0.5])
+        self.assertAlmostEqual(hub.energy(T=1), -1.4866311209589655, msg=msg)
+        self.assertAlmostEqual(hub.energy(T=0.1), -2.5809756795204564, msg=msg)
+    #
+    def test_chemical_potential(self):
+        # Test an arbitrary example.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=2, nrows=2, ncols=2)
+        hub.set_kmesh(3,3, method='gamma')
+        hub.set_electrons(nup=3, ndown=3, method='uniform')
+        msg = "Did not get expected chemical potential."
+        self.assertAlmostEqual(hub.chemical_potential(1), -1.4255302968938393, msg=msg)
+        self.assertAlmostEqual(hub.chemical_potential(0.1), -1.4865531063827795, msg=msg)
+    #
+    def test_eigenstep(self):
+        # First, a trivial test: U=0, so it converges to the ground state in one step.
+        # Also Gamma point only, which makes the energy eigenstate predictable.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nup=1, ndown=1, method='random')
+        msg = " did not have the expected value."
+        en, nup, ndown = hub._eigenstep()
+        self.assertAlmostEqual(en, -8, msg="Energy"+msg)
+        self.assertAlmostEqual(np.abs(nup - [1/3,1/3,1/3]).sum(), 0, msg="nup"+msg)
+        self.assertAlmostEqual(np.abs(ndown - [1/3,1/3,1/3]).sum(), 0, msg="ndown"+msg)
+        # Now a more elaborate example
+        hub.set_kmesh(5,5)
+        hub.set_u(10)
+        hub.set_electrons(nup=[1,0,0], ndown=[0,0,1])
+        en, nup, ndown = hub._eigenstep()
+        n1 = 0.48808139
+        n2 = 0.02383723
+        self.assertAlmostEqual(en, -3.157996692682141, msg="Energy"+msg)
+        self.assertAlmostEqual(np.abs(nup - [n1,n1,n2]).sum(), 0, msg="nup"+msg)
+        self.assertAlmostEqual(np.abs(ndown - [n2,n1,n1]).sum(), 0, msg="ndown"+msg)
+    #
+    def test_eigenstep_finite_T(self):
+        # First, a trivial test: U=0, so it converges to the ground state in one step.
+        # Also Gamma point only, which makes the energy eigenstate predictable.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nup=1, ndown=1, method='random')
+        msg = " did not have the expected value."
+        en, nup, ndown = hub._eigenstep_finite_T(0.1)
+        self.assertAlmostEqual(en, -8, msg="Energy"+msg)
+        self.assertAlmostEqual(np.abs(nup - [1/3,1/3,1/3]).sum(), 0, msg="nup"+msg)
+        self.assertAlmostEqual(np.abs(ndown - [1/3,1/3,1/3]).sum(), 0, msg="ndown"+msg)
+        # Now a more elaborate example
+        hub.set_kmesh(5,5)
+        hub.set_u(10)
+        hub.set_electrons(nup=[1,0,0], ndown=[0,0,1])
+        en, nup, ndown = hub._eigenstep_finite_T(0.1)
+        n1 = 0.48807559
+        n2 = 0.02384882
+        self.assertAlmostEqual(en, -3.155852250599545, msg="Energy"+msg)
+        self.assertAlmostEqual(np.abs(nup - [n1,n1,n2]).sum(), 0, msg="nup"+msg)
+        self.assertAlmostEqual(np.abs(ndown - [n2,n1,n1]).sum(), 0, msg="ndown"+msg)
+        en, nup, ndown = hub._eigenstep_finite_T(1)
+        n1 = 0.48938719
+        n2 = 0.02122561
+        self.assertAlmostEqual(en, -2.206683245053485, msg="Energy"+msg)
+        self.assertAlmostEqual(np.abs(nup - [n1,n1,n2]).sum(), 0, msg="nup"+msg)
+        self.assertAlmostEqual(np.abs(ndown - [n2,n1,n1]).sum(), 0, msg="ndown"+msg)
+    #
+    def test_residual(self):
+        # First, test a known case
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nup=[1,0,0], ndown=[0,0,1])
+        hub.set_kmesh(1,1) # Have to use Gamma point only, otherwise degeneracies cause problems.
+        msg = "Residual was not the expected value."
+        res = hub.residual()
+        self.assertAlmostEqual(res, np.sqrt(4+1+1+1+1+4)/3, msg=msg)
+        # Now a simpler case.
+        hub.set_electrons(nup=1, ndown=1, method='uniform')
+        res = hub.residual()
+        self.assertAlmostEqual(res, 0, msg=msg)
+        # Now finite U, which lifts many degeneracies.
+        hub.set_electrons(nup=[1,0,0], ndown=[0,0,1])
+        hub.set_kmesh(5,5)
+        hub.set_u(10)
+        res = hub.residual() 
+        n1 = 0.48808139
+        n2 = 0.02383723
+        self.assertAlmostEqual(res, np.sqrt(((1-n1)**2 + n1**2 + n2**2) * 2), msg=msg)
+    #
+    def test_residual_T(self):
+        # At finite T, degeneracies are handled properly.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nup=[1,0,0], ndown=[0,0,1])
+        hub.set_kmesh(5,5)
+        msg = "Residual was not the expected value."
+        res = hub.residual(0.1)
+        self.assertAlmostEqual(res, np.sqrt(4+1+1+1+1+4)/3, msg=msg)
+        # Now a simpler case.
+        hub.set_electrons(nup=1, ndown=1, method='uniform')
+        res = hub.residual(0.1)
+        self.assertAlmostEqual(res, 0, msg=msg)
+        # Now finite U
+        hub.set_electrons(nup=[1,0,0], ndown=[0,0,1])
+        hub.set_kmesh(5,5)
+        hub.set_u(10)
+        res = hub.residual(0.1)
+        n1 = 0.48807559
+        n2 = 0.02384882
+        self.assertAlmostEqual(res, np.sqrt(((1-n1)**2 + n1**2 + n2**2) * 2), msg=msg)
+        res = hub.residual(1)
+        n1 = 0.48938719
+        n2 = 0.02122561
+        self.assertAlmostEqual(res, np.sqrt(((1-n1)**2 + n1**2 + n2**2) * 2), msg=msg)
+    #
+    def test_eigenvalues_at_kpoints(self):
+        # We'll compare to U=0 case, since nice and simple.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0)
+        hub.set_kmesh(3,8)
+        msg = "Did not get expected list of eigenvalues."
+        # Expected eigenvalues
+        eigen = np.array([[[self.e1(k), self.e2(k), self.e3(k)] for s in range(2)] for k in hub.kmesh])
+        with self.subTest(test="Default klist"):
+            bands = hub.eigenvalues_at_kpoints()
+            self.assertAlmostEqual(np.abs(bands - eigen).sum(), 0, msg=msg)
+            self.assertSequenceEqual(bands.shape, eigen.shape, msg="Did not have expected shape.")
+        with self.subTest(test="Non-zero mag"):
+            hub.set_mag(2)
+            eigen += np.array([[[-2],[2]]])
+            bands = hub.eigenvalues_at_kpoints()
+            self.assertAlmostEqual(np.abs(bands - eigen).sum(), 0, msg=msg)
+            self.assertSequenceEqual(bands.shape, eigen.shape, msg="Did not have expected shape.")
+        with self.subTest(test="Specified k-points"):
+            hub.set_mag(0)
+            klist = [[0,0], [0.5,0.5]]
+            eigen = np.array([[[self.e1(k), self.e2(k), self.e3(k)] for s in range(2)] for k in klist])
+            bands = hub.eigenvalues_at_kpoints(klist)
+            self.assertAlmostEqual(np.abs(bands - eigen).sum(), 0, msg=msg)
+            self.assertSequenceEqual(bands.shape, eigen.shape, msg="Did not have expected shape.")
+    #
+    def test_linear_mixing(self):
+        msg1 = "Density did not have expected value."
+        msg2 = "Number of electrons changed."
+        with self.subTest(test="U=0"):
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=2, u=0)
+            hub.set_electrons(nup=4, ndown=7, method='random')
+            # Gamma point only, because degeneracies. But even then, must pick things carefully.
+            hub.linear_mixing(mix=1)
+            self.assertAlmostEqual(np.abs(hub.nup - 1/3).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(np.abs(hub.ndown - 7/4/3).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(hub.nup.sum(), 4, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 7, msg=msg2)
+            self.assertEqual(hub.nelectup, 4, msg=msg2)
+            self.assertEqual(hub.nelectdown, 7, msg=msg2)
+        with self.subTest(test="U=20"):
+            hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=1, ncols=1, u=20)
+            hub.set_electrons(nup=[1,1,0], ndown=[0,0,1])
+            hub.set_kmesh(5,5)
+            hub.linear_mixing(rdiff=1e-8)
+            # Equality here will be measured quite loosely.
+            n1 = 0.99543792
+            n2 = 0.9889922
+            self.assertAlmostEqual(np.abs(hub.nup - [n1, n1, (1-n1)*2]).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(np.abs(hub.ndown - [(1-n2)/2, (1-n2)/2, n2]).sum(), 0, msg=msg1)
+            self.assertAlmostEqual(hub.nup.sum(), 2, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 1, msg=msg2)
+            self.assertEqual(hub.nelectup, 2, msg=msg2)
+            self.assertEqual(hub.nelectdown, 1, msg=msg2)
+
+
         
 """
 Tests to write:
     copy
     save
     load
-    all the things in base which I couldn't do before
+    set_electrons with other methods
+all the things in base which I couldn't do before
+    anderson_mixing
+    linear_mixing
+    pulay_mixing
+    band_structure
+    density_of_states
+    eigenvalues_at_kpoints
+    eigenstates
+    fermi
+    plot_bands
+    plot_spin
+    plot_charge
+    plot_DOS
+    plot_spincharge
 """
 if __name__ == "__main__":
     unittest.main()
