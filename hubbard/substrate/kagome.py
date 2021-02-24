@@ -1,10 +1,8 @@
 #!/usr/bin/python3
 
-from inspect import isclass
-from math import sqrt, pi
+from math import pi
 
 import numpy as np
-from scipy.linalg import block_diag
 
 from hubbard.substrate.base import HubbardSubstrate
 from hubbard.kpoints.kagome import KagomeHubbardKPoints

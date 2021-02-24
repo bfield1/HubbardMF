@@ -30,6 +30,12 @@ class HubbardSubstrate(HubbardKPoints):
         #   each atom in the TB system.
     #
     def get_kinetic(self, k):
+        """
+        Retrieves the full kinetic energy matrix
+
+        Input: k - list-like of two numbers, wavevector (fractional coords)
+        Output: (self.nsites,self.nsites) ndarray, Hermitian, complex.
+        """
         # Get the Hamiltonian of the system on top
         htop = self.get_kinetic_no_substrate(k)
         # Catch the case of no substrate
