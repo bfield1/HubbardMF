@@ -29,3 +29,13 @@ class KagomeSubstrate(HubbardSubstrate, KagomeHubbardKPoints):
         return np.array([[self.offset, c0.conjugate(), c1.conjugate()],
                          [c0, self.offset, c2.conjugate()],
                          [c1, c2, self.offset]])
+    #
+    def copy(self):
+        raise NotImplementedError
+    @classmethod
+    def load(self, filename):
+        raise NotImplementedError
+    def save(self, filename):
+        raise NotImplementedError
+    def set_kinetic_random(self, t=1, wt=0, we=0):
+        raise NotImplementedError
