@@ -1188,7 +1188,36 @@ class TestBaseSubstrate(unittest.TestCase):
         hub.add_substrate('square', 0, nx=1, ny=2)
         msg1 = "Have wrong number of substrates."
         msg2 = " was not set correctly."
+        msg3 = " has the wrong length."
+        self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
+        self.assertListEqual(hub.couplings, [0], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [2], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 3, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
+        hub.change_substrate(0, coupling=1.5)
+        self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
+        self.assertListEqual(hub.couplings, [1.5], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [2], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 3, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
+        hub.change_substrate(0, nx=3, ny=1)
+        self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
+        self.assertListEqual(hub.couplings, [1.5], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [3], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 4, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
+        hub.change_substrate(0, subtype='triangle', nx=3, ny=1)
+        self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
+        self.assertListEqual(hub.couplings, [1.5], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [3], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 4, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
         
+
 
 
 
