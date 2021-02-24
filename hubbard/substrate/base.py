@@ -29,6 +29,11 @@ class HubbardSubstrate(HubbardKPoints):
         # self.positions, a list of the coordinates (in fractional coords) of
         #   each atom in the TB system.
     #
+    def copy(self):
+        """Returns a deep copy of itself."""
+        # It's so complicated that it just isn't worth doing it manually.
+        return copy.deepcopy(self)
+    #
     def get_kinetic(self, k):
         """
         Retrieves the full kinetic energy matrix

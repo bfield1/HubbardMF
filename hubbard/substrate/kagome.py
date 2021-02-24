@@ -10,8 +10,8 @@ from hubbard.kpoints.kagome import KagomeHubbardKPoints
 class KagomeSubstrate(HubbardSubstrate, KagomeHubbardKPoints):
     # MRO: KagomeSubstrate -> HubbardSubstrate -> KagomeHubbardKPoints -> HubbardKPoints
     """Single kagome unit cell on a periodic substrate"""
-    def __init__(self, u=0, t=1, offset=0, nup=0, ndown=0, allow_fractions=False, **kwargs):
-        super().__init__(u=u,t=t,nup=nup,ndown=ndown,allow_fractions=allow_fractions,nrows=1,ncols=1,**kwargs)
+    def __init__(self, u=0, t=1, offset=0, nup=0, ndown=0, **kwargs):
+        super().__init__(u=u,t=t,nup=nup,ndown=ndown,nrows=1,ncols=1,**kwargs)
         self.set_kinetic(t, offset) # To consider: Putting offset in KagomeHubbardKPoints
         self.positions = self.get_coordinates()
     #
@@ -30,8 +30,6 @@ class KagomeSubstrate(HubbardSubstrate, KagomeHubbardKPoints):
                          [c0, self.offset, c2.conjugate()],
                          [c1, c2, self.offset]])
     #
-    def copy(self):
-        raise NotImplementedError
     @classmethod
     def load(self, filename):
         raise NotImplementedError
