@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-02-17
+Last Modified: 2021-02-19
 Author: Bernard Field
 """
 
@@ -242,8 +242,16 @@ class HubbardKPoints():
             # Do mixing
             residual_up = nupnew - self.nup
             residual_down = ndownnew - self.ndown
-            self.set_electrons(nup=self.nup*(1-mix) + nupnew*mix,
-                               ndown=self.ndown*(1-mix) + ndownnew*mix)
+            # While analytically it should be impossible for the values to fall
+            # outside the allowed range, floating point errors can cause it
+            # to be outside by a tiniest smigeon. Catch these.
+            nupnext = self.nup*(1-mix) + nupnew*mix
+            ndownnext = self.ndown*(1-mix) + ndownnew*mix
+            nupnext[nupnext > 1] = 1
+            nupnext[nupnext < 0] = 0
+            ndownnext[ndownnext > 1] = 1
+            ndownnext[ndownnext < 0] = 0
+            self.set_electrons(nup=nupnext, ndown=ndownnext)
             # Check for convergence
             res = np.linalg.norm(np.concatenate((residual_up,residual_down)))
             de = abs(ennew - en)
@@ -340,10 +348,20 @@ class HubbardKPoints():
             # Write new densities.
             nupnew = np.dot(coef[0:-1],densities_up)
             ndownnew = np.dot(coef[0:-1],densities_down)
+            # Floating point errors can take densities out of bounds in
+            # limiting cases. Catch these cases.
+            if self.nelectup == self.nsites:
+                nupnew = np.ones(self.nsites)
+            elif self.nelectup == 0:
+                nupnew = np.zeros(self.nsites)
+            if self.nelectdown == self.nsites:
+                ndownnew = np.ones(self.nsites)
+            elif self.nelectdown == 0:
+                ndownnew = np.zeros(self.nsites)
             # Check validity
             if (nupnew.max()>1 or nupnew.min()<0
                 or ndownnew.max()>1 or ndownnew.min()<0):
-                raise MixingError("Electron density out of bounds.")
+                raise MixingError("Electron density out of bounds. Try linear_mixing.")
             # Apply mixing.
             self.set_electrons(nupnew,ndownnew)
         # Done, but due to exceeding the maximum iterations.
@@ -518,7 +536,7 @@ class HubbardKPoints():
                 Dirichlet alpha parameter. Default is chosen automatically.
         Outputs: density - ndarray of shape (3*nrows*ncols,)
             nelect - integer.
-        Last Modified; 2020-08-17
+        Last Modified: 2021-02-19
         """
         # A useful constant
         nsites = self.nsites
@@ -536,12 +554,16 @@ class HubbardKPoints():
                          " is not an integer. Rounding to "+str(nelect)+".")
             else:
                 nelect = n
+            if nelect < 0 or nelect > nsites:
+                raise ValueError("The number of electrons is out of bounds.")
             # Generate an electron density by the appropriate method.
             density = self._electron_density_single_methods(nelect,method,up,
                                                             alpha=alpha,**kwargs)
         else:
             # n is the electron density.
-            density = np.asarray(n)
+            density = np.asarray(n, dtype=float)
+            if density.min() < 0 or density.max() > 1:
+                raise ValueError("The electron density is out of bounds.")
             if len(density) != nsites:
                 raise ValueError("n has the wrong length.")
             if not self.allow_fractions:
@@ -549,9 +571,19 @@ class HubbardKPoints():
                 if abs(nelect - sum(n)) > 1e-10:
                     warn("Number of electrons "+str(sum(n))+
                          " is not an integer. Rounding to "+str(nelect)+".")
+                    # Re-scale the density
+                    sca = nelect/sum(n)
+                    if sca < 1:
+                        # Scale the electrons
+                        density *= sca
+                    else:
+                        # Scale the holes
+                        sca = (nsites - nelect)/(nsites - sum(n))
+                        density = 1 - sca + sca*density
             else:
                 nelect = sum(n)
         # Check that values are within bounds.
+        # We had checks earlier checking the inputs, but here we double check.
         if nelect < 0 or nelect > nsites:
             raise ValueError("The number of electrons is out of bounds.")
         if density.min() < 0 or density.max() > 1:
@@ -942,6 +974,9 @@ class HubbardKPoints():
     def _chemical_potential_from_states(self,T,N,energies):
         """
         Determine chemical potential for a given temperature and set of states.
+
+        I note that my T=0 algorithm sometimes gives different results to the
+        limit T->0.
         
         Inputs: T - nonnegative number, temperature.
                 If T==0, simply returns the energy of the
@@ -949,7 +984,7 @@ class HubbardKPoints():
             N - number of occupied states (electrons * kpoints).
             energies - sorted list/ndarray of all eigenenergies.
         Output: the chemical potential, a number
-        Last Modified: 2021-02-09
+        Last Modified: 2021-02-18
         """
         if T < 0:
             raise ValueError("T cannot be negative.")
@@ -962,8 +997,13 @@ class HubbardKPoints():
             # occupation. N must be an integer.
             N = int(round(N))
             # Get the N'th eigenenergy.
-            mu = energies[N-1]
+            if N == 0:
+                mu = energies[0]
+            else:
+                mu = energies[N-1]
         else:
+            # Convert to array so it works in fermi_distribution
+            energies = np.asarray(energies)
             # Get a first guess of the chemical potential.
             mu = energies[int(round(N))-1]
             nguess = fermi_distribution(energies,T,mu).sum()
@@ -1349,7 +1389,7 @@ class HubbardKPoints():
             to this value if provided. Toggles allow_fractions otherwise.
         Output: Boolean, new value of allow_fractions.
 
-        Last Modified: 2020-09-11
+        Last Modified: 2021-02-18
         """
         if val is None:
             # If val not set, we toggle.
@@ -1367,20 +1407,21 @@ class HubbardKPoints():
             self.nelectdown = int(round(self.nelectdown))
             # Rescale the electron densities to match.
             if nelectup_old > 0:
-                self.nup *= self.nelectup/nelectup_old
+                sca = self.nelectup/nelectup_old
+                if sca < 1:
+                    self.nup *= sca
+                elif sca > 1:
+                    # Do scaling of hole density instead.
+                    sca = (self.nsites - self.nelectup)/(self.nsites - nelectup_old)
+                    self.nup = 1 - sca + sca * self.nup
             if nelectdown_old > 0:
-                self.ndown *= self.nelectdown/nelectdown_old
-            # Ensure no values exceed 1.
-            while np.any(self.nup > 1):
-                warn("New electron occupation exceeds 1. Reducing "
-                     "number of spin up electrons.")
-                self.nelectup -= 1
-                self.nup *= self.nelectup/(self.nelectup+1)
-            while np.any(self.ndown > 1):
-                warn("New electron occupation exceeds 1. Reducing "
-                     "number of spin down electrons.")
-                self.nelectdown -= 1
-                self.ndown *= self.nelectdown/(self.nelectdown+1)
+                sca = self.nelectdown/nelectdown_old
+                if sca < 1:
+                    self.ndown *= sca
+                elif sca > 1:
+                    # Do scaling of hole density instead.
+                    sca = (self.nsites - self.nelectdown)/(self.nsites - nelectdown_old)
+                    self.ndown = 1 - sca + sca * self.ndown
             # Now toggle the flag.
             self.allow_fractions = False
         return self.allow_fractions
