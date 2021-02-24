@@ -1134,11 +1134,14 @@ class TestBaseSubstrate(unittest.TestCase):
         self.assertListEqual(hub.couplings, [0,1,2], msg="couplings not set correctly.")
         self.assertListEqual(hub.substrate_sites, [1,1,2], msg="substrate_sites not set correctly.")
         self.assertEqual(hub.nsites, 5, msg="nsites not set correctly.")
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup has the wrong length.")
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown has the wrong length.")
     #
     def test_remove_substrate(self):
         hub = hubbard.substrate.base.HubbardSubstrate(nsites=1)
         msg1 = "Have wrong number of substrates."
         msg2 = " was not set correctly."
+        msg3 = " has the wrong length."
         hub.add_substrate('square', 0, nx=1, ny=1)
         hub.add_substrate('square', 1, nx=2, ny=1)
         hub.add_substrate('square', 2, nx=1, ny=3)
@@ -1147,27 +1150,45 @@ class TestBaseSubstrate(unittest.TestCase):
         self.assertListEqual(hub.couplings, [0,1,2,3], msg="couplings"+msg2)
         self.assertListEqual(hub.substrate_sites, [1,2,3,4], msg="substrate_sites"+msg2)
         self.assertEqual(hub.nsites, 11, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
         # Remove the substrates one by one
         hub.remove_substrate(0)
         self.assertEqual(len(hub.substrate_list), 3, msg=msg1)
         self.assertListEqual(hub.couplings, [1,2,3], msg="couplings"+msg2)
         self.assertListEqual(hub.substrate_sites, [2,3,4], msg="substrate_sites"+msg2)
         self.assertEqual(hub.nsites, 10, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
         hub.remove_substrate(-1)
         self.assertEqual(len(hub.substrate_list), 2, msg=msg1)
         self.assertListEqual(hub.couplings, [1,2], msg="couplings"+msg2)
         self.assertListEqual(hub.substrate_sites, [2,3], msg="substrate_sites"+msg2)
         self.assertEqual(hub.nsites, 6, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
         hub.remove_substrate(1)
         self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
         self.assertListEqual(hub.couplings, [1], msg="couplings"+msg2)
         self.assertListEqual(hub.substrate_sites, [2], msg="substrate_sites"+msg2)
         self.assertEqual(hub.nsites, 3, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
         hub.remove_substrate(0)
         self.assertEqual(len(hub.substrate_list), 0, msg=msg1)
         self.assertListEqual(hub.couplings, [], msg="couplings"+msg2)
         self.assertListEqual(hub.substrate_sites, [], msg="substrate_sites"+msg2)
         self.assertEqual(hub.nsites, 1, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
+    #
+    def test_change_substrate(self):
+        """Tests that change_substrate behaves as expected."""
+        hub = hubbard.substrate.base.HubbardSubstrate(nsites=1)
+        hub.add_substrate('square', 0, nx=1, ny=2)
+        msg1 = "Have wrong number of substrates."
+        msg2 = " was not set correctly."
+        
 
 
 
