@@ -8,6 +8,9 @@ import numpy as np
 
 import hubbard.kpoints.base
 import hubbard.kpoints.kagome
+import hubbard.substrate.base
+import hubbard.substrate.kagome
+
 
 class TestBaseKPoints(unittest.TestCase):
     """
@@ -1095,15 +1098,10 @@ class TestBaseKagomeKPoints(unittest.TestCase):
             self.assertAlmostEqual(hub.nelectup, 2, msg=msg2)
             self.assertAlmostEqual(hub.nelectdown, 1, msg=msg2)
             self.assertLessEqual(hub.residual(0.1), 1e-8, msg=msg3)
-
-
-
-        
-
+    
         
 """
-Tests to write:
-    save
+Tests to write for hubbard.kpoints.kagome:
     set_electrons with other methods
 all the things in base which I couldn't do before
     anderson_mixing
@@ -1117,5 +1115,65 @@ all the things in base which I couldn't do before
     plot_DOS
     plot_spincharge
 """
+
+class TestBaseSubstrate(unittest.TestCase):
+    """Tests hubbard.substrate.base"""
+    # I can test adding, changing and removing substrates.
+    # I can also test calling methods of those substrates.
+    def test_init(self):
+        hub = hubbard.substrate.base.HubbardSubstrate(nsites=3)
+        self.assertEqual(hub.base_nsites, 3, msg="base_sites not initialised correctly.")
+    #
+    def test_add_substrate(self):
+        """Tests if the method gets called correctly."""
+        hub = hubbard.substrate.base.HubbardSubstrate(nsites=1)
+        hub.add_substrate('square', 0, nx=1, ny=1)
+        hub.add_substrate('triangle', 1, nx=1, ny=1)
+        hub.add_substrate('dft', 2, nx=1, ny=2)
+        self.assertEqual(len(hub.substrate_list), 3, msg="Have wrong number of substrates.")
+        self.assertListEqual(hub.couplings, [0,1,2], msg="couplings not set correctly.")
+        self.assertListEqual(hub.substrate_sites, [1,1,2], msg="substrate_sites not set correctly.")
+        self.assertEqual(hub.nsites, 5, msg="nsites not set correctly.")
+    #
+    def test_remove_substrate(self):
+        hub = hubbard.substrate.base.HubbardSubstrate(nsites=1)
+        msg1 = "Have wrong number of substrates."
+        msg2 = " was not set correctly."
+        hub.add_substrate('square', 0, nx=1, ny=1)
+        hub.add_substrate('square', 1, nx=2, ny=1)
+        hub.add_substrate('square', 2, nx=1, ny=3)
+        hub.add_substrate('square', 3, nx=2, ny=2)
+        self.assertEqual(len(hub.substrate_list), 4, msg=msg1)
+        self.assertListEqual(hub.couplings, [0,1,2,3], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [1,2,3,4], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 11, msg="nsites"+msg2)
+        # Remove the substrates one by one
+        hub.remove_substrate(0)
+        self.assertEqual(len(hub.substrate_list), 3, msg=msg1)
+        self.assertListEqual(hub.couplings, [1,2,3], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [2,3,4], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 10, msg="nsites"+msg2)
+        hub.remove_substrate(-1)
+        self.assertEqual(len(hub.substrate_list), 2, msg=msg1)
+        self.assertListEqual(hub.couplings, [1,2], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [2,3], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 6, msg="nsites"+msg2)
+        hub.remove_substrate(1)
+        self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
+        self.assertListEqual(hub.couplings, [1], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [2], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 3, msg="nsites"+msg2)
+        hub.remove_substrate(0)
+        self.assertEqual(len(hub.substrate_list), 0, msg=msg1)
+        self.assertListEqual(hub.couplings, [], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 1, msg="nsites"+msg2)
+
+
+
+
+
+
+
 if __name__ == "__main__":
     unittest.main()

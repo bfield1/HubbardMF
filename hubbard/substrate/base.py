@@ -104,7 +104,7 @@ class HubbardSubstrate(HubbardKPoints):
         new_sites = len(self.substrate_list[index].glist)
         if new_sites != self.substrate_sites[index]:
             # Indices at start and after segment to be changed.
-            i1 = self.base_sites + np.sum(self.substrate_sites[0:index])
+            i1 = self.base_sites + int(np.sum(self.substrate_sites[0:index]))
             i2 = i1 + self.substrate_sites[index] + 1
             # Replace old segement with zeros of new length
             self.nup = np.hstack((self.nup[0:i1], np.zeros(new_sites),
@@ -122,7 +122,7 @@ class HubbardSubstrate(HubbardKPoints):
         del self.substrate_list[index]
         del self.couplings[index]
         # Indices at start and after segment to be changed.
-        i1 = self.base_nsites + np.sum(self.substrate_sites[0:index])
+        i1 = self.base_nsites + int(np.sum(self.substrate_sites[0:index]))
         i2 = i1 + self.substrate_sites[index] + 1
         # Remove the segment
         self.nup = np.hstack((self.nup[0:i1], self.nup[i2:]))
