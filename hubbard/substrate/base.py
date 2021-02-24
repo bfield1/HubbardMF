@@ -19,7 +19,7 @@ class HubbardSubstrate(HubbardKPoints):
               }
     #
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, allow_fractions=True, **kwargs)
         self.substrate_list = []
         self.couplings = []
         self.base_nsites = self.nsites
