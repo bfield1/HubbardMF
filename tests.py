@@ -1230,6 +1230,16 @@ class TestBaseSubstrate(unittest.TestCase):
         self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
         self.assertEqual(hub.substrate_list[0].t, 2, msg="t"+msg2)
         self.assertEqual(hub.substrate_list[0].offset, -1, msg="offset"+msg2)
+    #
+    def test_add_substrate_dft(self):
+        testfile = 'fixtures/band1.dat'
+        hub = hubbard.substrate.base.HubbardSubstrate(1)
+        try:
+            hub.add_substrate(subtype='dft', coupling=0, filename='fixtures/band1.dat')
+        except FileNotFoundError:
+            print("Testing file "+testfile+" not found.")
+            self.skipTest()
+        
 
 class TestKagomeSubstrate(unittest.TestCase):
     # Eigenenergies of kagome TB model (U=0).
@@ -1239,6 +1249,23 @@ class TestKagomeSubstrate(unittest.TestCase):
         return -1 + np.sqrt(4*(np.cos(pi*k[0])**2 + np.cos(pi*k[1])**2 + np.cos(pi*(k[1]-k[0]))**2) - 3)
     def e3(self, k):
         return 2
+    def etri(self,k):
+        """Energy dispersion for triangular substrate"""
+        return -2 * (np.cos(2*pi*k[0]) + np.cos(2*pi*k[1]) + np.cos(2*pi*(k[1]-k[0])))
+    def edft(self, k):
+        # Manually calculated bilinear interpolation for band1.dat
+        k = np.mod(k,1)
+        if k[0] < 1/3:
+            x = 3*k[0]
+        elif k[0] > 2/3:
+            x = 3*(1-k[0])
+        else:
+            x = 1
+        if k[1] < 1/2:
+            y = 2*k[1]
+        else:
+            y = 2*(1-k[1])
+        return x * y
     #
     def test_init(self):
         hub = hubbard.substrate.kagome.KagomeSubstrate()
@@ -1286,7 +1313,7 @@ class TestKagomeSubstrate(unittest.TestCase):
                 kin = hub.get_kinetic(k)
                 self.assertAlmostEqual(np.abs(kin - 2*kin2(k) + 0.5*np.eye(3)).sum(), 0, msg=msg)
     #
-    def test_eigensystem_simplest(self):
+    def test_eigensystem_simplest_nosubstrate(self):
         """
         U=0, single unit cell. Theoretical results known, at least for energies.
         """
@@ -1319,7 +1346,7 @@ class TestKagomeSubstrate(unittest.TestCase):
                                msg="Unexpected asymmetry between up and down spins.")
         self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
                 msg="Unexpected asymmetry between eigenvectors of up and down spins.")
-    def test_eigensystem_U_uniform(self):
+    def test_eigensystem_U_uniform_nosubstrate(self):
         # U behaves like an on-site potential
         # With uniform electron density, eigenvalues are just shifted vertically.
         hub = hubbard.substrate.kagome.KagomeSubstrate(u=2, nup=2, ndown=1, method='uniform')
@@ -1336,7 +1363,7 @@ class TestKagomeSubstrate(unittest.TestCase):
                 msg = "Did not get expected spin down eigenvalues.")
         # Due to degeneracy and broken symmetry,
         # we can't directly compare the eigenvectors.
-    def test_eigensystem_t0(self):
+    def test_eigensystem_t0_nosubstrate(self):
         hub = hubbard.substrate.kagome.KagomeSubstrate(t=0, u=1, nup=0, ndown=0)
         msg = "Did not get expected eigenvalues."
         eup, edown, vup, vdown = hub._eigensystem()
@@ -1355,7 +1382,7 @@ class TestKagomeSubstrate(unittest.TestCase):
         msg = "Did not get expected eigenvectors."
         self.assertAlmostEqual(np.abs(vup - vupexp).sum(), 0, msg=msg)
         self.assertAlmostEqual(np.abs(vdown - vdownexp).sum(), 0, msg=msg)
-    def test_linear_mixing_T(self):
+    def test_linear_mixing_nosubstrate(self):
         # At finite T, failure to converge due to degeneracies is no longer a problem.
         # But, electrons can now move between the up and down channels.
         msg1 = "Density did not have expected value."
@@ -1378,6 +1405,136 @@ class TestKagomeSubstrate(unittest.TestCase):
             self.assertAlmostEqual(hub.nelectup, 2, msg=msg2)
             self.assertAlmostEqual(hub.nelectdown, 1, msg=msg2)
             self.assertLessEqual(hub.residual(0.1), 1e-8, msg=msg3)
+    #
+    # Now it is time to start testing substrates.
+    #
+    def test_substrate_triangle_nocouple(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        hub.add_substrate(subtype='triangle', coupling=0, t=2, offset=-1)
+        # First, Gamma point, with some t and offset.
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Kagome: -4, 2, 2; Triangle: 2*(-6)-1
+        eigen = [-13, -4, 2, 2]
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+        # Now, multi k-points.
+        hub.change_substrate(0, t=1, offset=0)
+        hub.set_kmesh(4,9)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen += [self.etri(k) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+    def test_substrate_triangle_nocouple_multicell(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        hub.add_substrate(subtype='triangle', coupling=0)
+        # Finally, larger substrate unit cell.
+        hub.change_substrate(0, nx=1, ny=2)
+        # Gamma point only.
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen += [self.etri([k[0], k[1]/2]) for k in hub.kmesh]
+        eigen += [self.etri([k[0], (k[1]+1)/2]) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+        # Multi k-points
+        hub.set_kmesh(4,9)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen += [self.etri([k[0], k[1]/2]) for k in hub.kmesh]
+        eigen += [self.etri([k[0], (k[1]+1)/2]) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+    def test_substrate_dft_nocouple(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        hub.add_substrate(subtype='dft', coupling=0, filename='fixtures/band1.dat')
+        # Now, multi k-points.
+        hub.set_kmesh(4,9)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen += [self.edft(k) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+    def test_substrate_multisubstrate_nocouple(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        hub.add_substrate(subtype='dft', coupling=0, filename='fixtures/band1.dat')
+        hub.add_substrate(subtype='triangle', coupling=0)
+        # Now, multi k-points.
+        hub.set_kmesh(4,9)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen += [self.etri(k) for k in hub.kmesh]
+        eigen += [self.edft(k) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+    #
+    def test_get_kinetic_substrate(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        msg = "Kinetic energy matrix was not as expected."
+        hub.add_substrate(subtype='triangle', coupling=1, nx=1, ny=2)
+        hub.add_substrate(subtype='triangle', coupling=2, nx=1, ny=1, offset=-3)
+        def kin1(k):
+            hkag = -np.array([[0, 1+np.exp(-2j*pi*k[0]), 1+np.exp(-2j*pi*k[1])],
+                             [1+np.exp(2j*pi*k[0]), 0, 1+np.exp(-2j*pi*(k[1]-k[0]))],
+                             [1+np.exp(2j*pi*k[1]), 1+np.exp(2j*pi*(k[1]-k[0])), 0]])
+            hcouple = -np.array([[1/sqrt(2), 1/sqrt(2), 2],
+                                [np.exp(1j*pi*k[0])/sqrt(2), np.exp(1j*pi*k[0])/sqrt(2), 2*np.exp(1j*pi*k[0])],
+                                [np.exp(1j*pi*k[1])/sqrt(2), np.exp(1j*pi*(k[1]+1))/sqrt(2), 2*np.exp(1j*pi*k[1])]])
+            hdiag = np.diag([self.etri([k[0],k[1]/2]), self.etri([k[0],(k[1]+1)/2]), self.etri(k)-3])
+            return np.block([[hkag, hcouple], [hcouple.transpose().conjugate(), hdiag]])
+        k = [0,0]
+        kin = hub.get_kinetic(k)
+        self.assertAlmostEqual(np.abs(kin - kin1(k)).sum(), 0, msg="At Gamma, "+msg)
+        for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
+            for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
+                k = [k0,k1]
+                kin = hub.get_kinetic(k)
+                self.assertAlmostEqual(np.abs(kin - kin1(k)).sum(), 0, msg=msg+" k= "+str(k)+" Diff: \n"+str(kin-kin1(k)))
+
 
 
 
