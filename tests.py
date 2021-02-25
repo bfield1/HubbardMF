@@ -1232,7 +1232,7 @@ class TestKagomeSubstrate(unittest.TestCase):
         msg = " not initialised correctly."
         self.assertEqual(hub.base_nsites, 3, msg="base_sites"+msg)
         self.assertEqual(hub.nsites, 3, msg="nsites"+msg)
-        reclat = np.array([[sqrt(3)/2, 1/3], [-sqrt(3)/2, 1/2]])
+        reclat = np.array([[sqrt(3)/2, 1/2], [-sqrt(3)/2, 1/2]])
         self.assertAlmostEqual(np.abs(hub.reclat - reclat).sum(), 0, msg="reclat"+msg)
         pos = np.array([[0,0], [0.5,0], [0,0.5]]) # Fractional coords
         self.assertAlmostEqual(np.abs(hub.positions - pos).sum(), 0, msg="positions"+msg)
