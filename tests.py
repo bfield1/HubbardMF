@@ -478,8 +478,6 @@ class TestKagomeKPoints(unittest.TestCase):
             for k in [[0,0], [0.5,0.7]]:
                 kin = hub.get_kinetic(k)
                 self.assertAlmostEqual(np.abs(kin - kin2(k)).sum(), 0, msg=msg)
-
-
     #
     def test_kinetic_2cell(self):
         hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=1)
@@ -1234,6 +1232,14 @@ class TestBaseSubstrate(unittest.TestCase):
         self.assertEqual(hub.substrate_list[0].offset, -1, msg="offset"+msg2)
 
 class TestKagomeSubstrate(unittest.TestCase):
+    # Eigenenergies of kagome TB model (U=0).
+    def e1(self, k):
+        return -1 - np.sqrt(4*(np.cos(pi*k[0])**2 + np.cos(pi*k[1])**2 + np.cos(pi*(k[1]-k[0]))**2) - 3)
+    def e2(self, k):
+        return -1 + np.sqrt(4*(np.cos(pi*k[0])**2 + np.cos(pi*k[1])**2 + np.cos(pi*(k[1]-k[0]))**2) - 3)
+    def e3(self, k):
+        return 2
+    #
     def test_init(self):
         hub = hubbard.substrate.kagome.KagomeSubstrate()
         msg = " not initialised correctly."
@@ -1259,6 +1265,120 @@ class TestKagomeSubstrate(unittest.TestCase):
         hub.set_kinetic(t=2.5)
         self.assertEqual(hub.t, 2.5, msg="t"+msg)
         self.assertEqual(hub.offset, -0.5, msg="offset"+msg2)
+    #
+    # First, a bunch of tests without substrates to see if it behaves like I expect it to.
+    def test_get_kinetic_simplest(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        msg = "kinetic energy matrix was not what was expected"
+        def kin2(k):
+            return -np.array([[0, 1+np.exp(-2j*pi*k[0]), 1+np.exp(-2j*pi*k[1])],
+                              [1+np.exp(2j*pi*k[0]), 0, 1+np.exp(-2j*pi*(k[1]-k[0]))],
+                              [1+np.exp(2j*pi*k[1]), 1+np.exp(2j*pi*(k[1]-k[0])), 0]])
+        with self.subTest(t=1, offset=0):
+            for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
+                for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
+                    k = [k0,k1]
+                    kin = hub.get_kinetic(k)
+                    self.assertAlmostEqual(np.abs(kin - kin2(k)).sum(), 0, msg=msg)
+        hub.set_kinetic(t=2, offset=-0.5)
+        for k in [[0,0],[0.5,0.7]]:
+            with self.subTest(k=[k0,k1], t=2):
+                kin = hub.get_kinetic(k)
+                self.assertAlmostEqual(np.abs(kin - 2*kin2(k) + 0.5*np.eye(3)).sum(), 0, msg=msg)
+    #
+    def test_eigensystem_simplest(self):
+        """
+        U=0, single unit cell. Theoretical results known, at least for energies.
+        """
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        # First, Gamma point
+        eup, edown, vup, vdown = hub._eigensystem()
+        self.assertAlmostEqual(np.abs(eup - [-4, 2, 2]).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        # With U=0, the spin up and down Hamiltonians should be identical.
+        # If the linalg methods are deterministic, then this means their outputs
+        # should be identical.
+        # If it weren't for degeneracies, I could test the eigenvectors more directly.
+        # But because of degeneracy, direct tests are difficult.
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+        # Now, multiple k-points.
+        # Make a k-mesh
+        hub.set_kmesh(4,9)
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen = sorted(eigen)
+        self.assertAlmostEqual(np.abs(eup - eigen).sum(), 0,
+                               msg="Did not get expected eigenvalues.")
+        self.assertAlmostEqual(np.abs(eup - edown).sum(), 0,
+                               msg="Unexpected asymmetry between up and down spins.")
+        self.assertAlmostEqual(np.abs(vup - vdown).sum(), 0,
+                msg="Unexpected asymmetry between eigenvectors of up and down spins.")
+    def test_eigensystem_U_uniform(self):
+        # U behaves like an on-site potential
+        # With uniform electron density, eigenvalues are just shifted vertically.
+        hub = hubbard.substrate.kagome.KagomeSubstrate(u=2, nup=2, ndown=1, method='uniform')
+        hub.set_kmesh(3,2, method='gamma')
+        eup, edown, vup, vdown = hub._eigensystem()
+        # Determine expected eigenvalues.
+        eigen = [self.e1(k) for k in hub.kmesh]
+        eigen += [self.e2(k) for k in hub.kmesh]
+        eigen += [self.e3(k) for k in hub.kmesh]
+        eigen = np.asarray(sorted(eigen))
+        self.assertAlmostEqual(np.abs(eigen + 2/3 - eup).sum(), 0,
+                msg = "Did not get expected spin up eigenvalues.")
+        self.assertAlmostEqual(np.abs(eigen + 4/3 - edown).sum(), 0,
+                msg = "Did not get expected spin down eigenvalues.")
+        # Due to degeneracy and broken symmetry,
+        # we can't directly compare the eigenvectors.
+    def test_eigensystem_t0(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate(t=0, u=1, nup=0, ndown=0)
+        msg = "Did not get expected eigenvalues."
+        eup, edown, vup, vdown = hub._eigensystem()
+        self.assertEqual(np.abs(eup - [0,0,0]).sum(), 0, msg=msg)
+        self.assertEqual(np.abs(edown - [0,0,0]).sum(), 0, msg=msg)
+        nup = [0.3, 0.6, 0.1]
+        ndown = [0.9, 1, 0.1]
+        hub.set_electrons(nup=nup, ndown=ndown)
+        eup, edown, vup, vdown = hub._eigensystem()
+        self.assertListEqual(eup.tolist(), sorted(ndown), msg=msg)
+        self.assertListEqual(edown.tolist(), sorted(nup), msg=msg)
+        # Because we have no degeneracies, and all states are localised,
+        # the eigenvectors are well-known.
+        vupexp = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]).transpose()
+        vdownexp = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]).transpose()
+        msg = "Did not get expected eigenvectors."
+        self.assertAlmostEqual(np.abs(vup - vupexp).sum(), 0, msg=msg)
+        self.assertAlmostEqual(np.abs(vdown - vdownexp).sum(), 0, msg=msg)
+    def test_linear_mixing_T(self):
+        # At finite T, failure to converge due to degeneracies is no longer a problem.
+        # But, electrons can now move between the up and down channels.
+        msg1 = "Density did not have expected value."
+        msg2 = "Number of electrons changed."
+        msg3 = "Residual not below expected threshold."
+        with self.subTest(test="U=20"):
+            hub = hubbard.substrate.kagome.KagomeSubstrate(u=20)
+            hub.set_electrons(nup=[1,0.9,0], ndown=[0,0.1,1])
+            hub.set_kmesh(5,5)
+            hub.linear_mixing(rdiff=1e-8, T=0.1)
+            # Equality here will be measured quite loosely.
+            n1 = 0.99543792
+            n2 = 0.98899219
+            self.assertAlmostEqual(np.abs(hub.nup - [n1, n1, (1-n1)*2]).sum(),
+                                   0, msg=msg1, places=4)
+            self.assertAlmostEqual(np.abs(hub.ndown - [(1-n2)/2, (1-n2)/2, n2]).sum(),
+                                   0, msg=msg1, places=4)
+            self.assertAlmostEqual(hub.nup.sum(), 2, msg=msg2)
+            self.assertAlmostEqual(hub.ndown.sum(), 1, msg=msg2)
+            self.assertAlmostEqual(hub.nelectup, 2, msg=msg2)
+            self.assertAlmostEqual(hub.nelectdown, 1, msg=msg2)
+            self.assertLessEqual(hub.residual(0.1), 1e-8, msg=msg3)
+
 
 
 
