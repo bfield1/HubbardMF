@@ -205,36 +205,36 @@ class KagomeHubbardKPoints(HubbardKPoints):
             m = m*idcol
             if ncols > 1:
                 m[(2,0,np.arange(ncols-1),1,nrows-1,np.arange(1,ncols))] = True
-            self.masks.append(np.reshape(m, kinshape, order='F'))
+            self.masks.append(np.reshape(m, kinshape, order='F').transpose())
             # (0,i,j)->(2,i,j-1) (1,i,j)->(2,i+1,j-1), needs e^ikb2
             m = np.zeros((3,1,ncols,3,1,ncols), dtype='bool')
             m[0,0,0,2,0,ncols-1] = True
             m = m*idrow
             if nrows > 1:
                 m[(1,np.arange(nrows-1),0,2,np.arange(1,nrows),ncols-1)] = True
-            self.masks.append(np.reshape(m, kinshape, order='F'))
+            self.masks.append(np.reshape(m, kinshape, order='F').transpose())
             # (1,i,j)->(2,i+1,j-1) corner, needs e^ik(b2-b1)
             m = np.zeros((3,nrows,ncols,3,nrows,ncols), dtype='bool')
             m[1,nrows-1,0,2,0,ncols-1] = True
-            self.masks.append(np.reshape(m, kinshape, order='F'))
+            self.masks.append(np.reshape(m, kinshape, order='F').transpose())
             # (2,i,j)->(1,i-1,j+1) corner, needs e^-ik(b2-b1)
             m = np.zeros((3,nrows,ncols,3,nrows,ncols), dtype='bool')
             m[2,0,ncols-1,1,nrows-1,0] = True
-            self.masks.append(np.reshape(m, kinshape, order='F'))
+            self.masks.append(np.reshape(m, kinshape, order='F').transpose())
             # (2,i,j)->(0,i,j+1), (2,i,j)->(1,i-1,j+1), needs e^-ikb2
             m = np.zeros((3,1,ncols,3,1,ncols), dtype='bool')
             m[2,0,ncols-1,0,0,0] = True
             m = m*idrow
             if nrows > 1:
                 m[(2,np.arange(1,nrows),ncols-1,1,np.arange(nrows-1),0)] = True
-            self.masks.append(np.reshape(m, kinshape, order='F'))
+            self.masks.append(np.reshape(m, kinshape, order='F').transpose())
             # (1,i,j)->(0,i+1,j), (1,i,j)->(2,i+1,j-1), needs e^-ikb1
             m = np.zeros((3,nrows,1,3,nrows,1), dtype='bool')
             m[1,nrows-1,0,0,0,0] = True
             m = m*idcol
             if ncols > 1:
                 m[(1,nrows-1,np.arange(1,ncols),2,0,np.arange(ncols-1))] = True
-            self.masks.append(np.reshape(m, kinshape, order='F'))
+            self.masks.append(np.reshape(m, kinshape, order='F').transpose())
             # Sanity check
             # The masks should not overlap
             assert (sum([a.sum() for a in self.masks]) ==

@@ -459,9 +459,9 @@ class TestKagomeKPoints(unittest.TestCase):
                                 [cos(pi*k[0]), 0, cos(pi*(k[1]-k[0]))],
                                 [cos(pi*k[1]), cos(pi*(k[1]-k[0])), 0]])
         def kin2(k):
-            return -np.array([[0, 1+np.exp(2j*pi*k[0]), 1+np.exp(2j*pi*k[1])],
-                              [1+np.exp(-2j*pi*k[0]), 0, 1+np.exp(2j*pi*(k[1]-k[0]))],
-                              [1+np.exp(-2j*pi*k[1]), 1+np.exp(-2j*pi*(k[1]-k[0])), 0]])
+            return -np.array([[0, 1+np.exp(-2j*pi*k[0]), 1+np.exp(-2j*pi*k[1])],
+                              [1+np.exp(2j*pi*k[0]), 0, 1+np.exp(-2j*pi*(k[1]-k[0]))],
+                              [1+np.exp(2j*pi*k[1]), 1+np.exp(2j*pi*(k[1]-k[0])), 0]])
         for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
             for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
                 with self.subTest(k=[k0,k1], t=1):
@@ -473,15 +473,22 @@ class TestKagomeKPoints(unittest.TestCase):
             with self.subTest(k=[k0,k1], t=2):
                 kin = hub.get_kinetic(k)
                 self.assertTrue(np.all(kin == 2*kin1(k)) or np.all(kin == 2*kin2(k)), msg=msg)
+        hub.set_kinetic(1, force_generic=True)
+        with self.subTest(t=1, force_generic=True):
+            for k in [[0,0], [0.5,0.7]]:
+                kin = hub.get_kinetic(k)
+                self.assertAlmostEqual(np.abs(kin - kin2(k)).sum(), 0, msg=msg)
+
+
     #
     def test_kinetic_2cell(self):
         hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(nrows=2, ncols=1)
         msg = "kinetic energy matrix was not what was expected"
         def kin1(k):
-            arr = np.array([[0, 1, 1+np.exp(2j*pi*k[1]), 0, np.exp(2j*pi*k[0]), 0],
-                            [0, 0, 1, 1, 0, np.exp(2j*pi*k[1])],
-                            [0, 0, 0, 0, np.exp(-2j*pi*(k[1]-k[0])), 0],
-                            [0, 0, 0, 0, 1, 1+np.exp(2j*pi*k[1])],
+            arr = np.array([[0, 1, 1+np.exp(-2j*pi*k[1]), 0, np.exp(-2j*pi*k[0]), 0],
+                            [0, 0, 1, 1, 0, np.exp(-2j*pi*k[1])],
+                            [0, 0, 0, 0, np.exp(2j*pi*(k[1]-k[0])), 0],
+                            [0, 0, 0, 0, 1, 1+np.exp(-2j*pi*k[1])],
                             [0, 0, 0, 0, 0, 1],
                             [0, 0, 0, 0, 0, 0]])
             return -(arr + arr.conjugate().transpose())
@@ -489,15 +496,15 @@ class TestKagomeKPoints(unittest.TestCase):
         kin = hub.get_kinetic([0,0])
         self.assertTrue(np.all(kin == kin1([0,0])), msg=msg)
         # Once this test passes, check k-dependence.
-        for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
-            for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
-                with self.subTest(k=[k0,k1], t=1):
+        with self.subTest(t=1):
+            for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
+                for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
                     k = [k0,k1]
                     kin = hub.get_kinetic(k)
                     self.assertTrue(np.all(kin == kin1(k)), msg=msg)
         hub.set_kinetic(2)
-        for k in [[0,0],[0.5,0.7]]:
-            with self.subTest(k=[k0,k1], t=2):
+        with self.subTest(t=2):
+            for k in [[0,0],[0.5,0.7]]:
                 kin = hub.get_kinetic(k)
                 self.assertTrue(np.all(kin == 2*kin1(k)), msg=msg)
     #
@@ -510,9 +517,9 @@ class TestKagomeKPoints(unittest.TestCase):
         self.assertTrue(all((ts >= 0.5) & (ts <= 1.5)), msg="Random t's out of range.")
         self.assertTrue(all((es >= -0.5) & (es <= 0.5)), msg="Random e's out of range.")
         def kin1(k):
-            return np.array([[es[0], -ts[0]*(1+np.exp(2j*pi*k[0])), -ts[1]*(1+np.exp(2j*pi*k[1]))],
-                             [-ts[0]*(1+np.exp(-2j*pi*k[0])), es[1], -ts[2]*(1+np.exp(2j*pi*(k[1]-k[0])))],
-                             [-ts[1]*(1+np.exp(-2j*pi*k[1])), -ts[2]*(1+np.exp(-2j*pi*(k[1]-k[0]))), es[2]]])
+            return np.array([[es[0], -ts[0]*(1+np.exp(-2j*pi*k[0])), -ts[1]*(1+np.exp(-2j*pi*k[1]))],
+                             [-ts[0]*(1+np.exp(2j*pi*k[0])), es[1], -ts[2]*(1+np.exp(-2j*pi*(k[1]-k[0])))],
+                             [-ts[1]*(1+np.exp(2j*pi*k[1])), -ts[2]*(1+np.exp(2j*pi*(k[1]-k[0]))), es[2]]])
         msg = "kinetic energy matrix was not what was expected"
         for k0 in [-1, -0.5, -0.2, 0, 0.3, 0.7, 1.2]:
             for k1 in [-1, -0.3, 0, 0.5, 1, 2]:
@@ -1238,7 +1245,20 @@ class TestKagomeSubstrate(unittest.TestCase):
         self.assertAlmostEqual(np.abs(hub.positions - pos).sum(), 0, msg="positions"+msg)
     #
     def test_set_kinetic(self):
-        pass
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        msg = " not set correctly."
+        msg2 = " changed unexpectedly."
+        self.assertEqual(hub.t, 1, msg="t"+msg)
+        self.assertEqual(hub.offset, 0, msg="offset"+msg)
+        hub.set_kinetic(t=2, offset=-1.2)
+        self.assertEqual(hub.t, 2, msg="t"+msg)
+        self.assertEqual(hub.offset, -1.2, msg="offset"+msg)
+        hub.set_kinetic(offset=-0.5)
+        self.assertEqual(hub.t, 2, msg="t"+msg2)
+        self.assertEqual(hub.offset, -0.5, msg="offset"+msg)
+        hub.set_kinetic(t=2.5)
+        self.assertEqual(hub.t, 2.5, msg="t"+msg)
+        self.assertEqual(hub.offset, -0.5, msg="offset"+msg2)
 
 
 
