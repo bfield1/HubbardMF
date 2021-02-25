@@ -13,7 +13,7 @@ class KagomeSubstrate(HubbardSubstrate, KagomeHubbardKPoints):
     def __init__(self, u=0, t=1, offset=0, nup=0, ndown=0, **kwargs):
         super().__init__(u=u,t=t,nup=nup,ndown=ndown,nrows=1,ncols=1,**kwargs)
         self.set_kinetic(t, offset) # To consider: Putting offset in KagomeHubbardKPoints
-        self.positions = self.get_coordinates()
+        self.positions = np.array([[0,0], [0.5,0], [0,0.5]]) # Fractional coordinates
     #
     def set_kinetic(self, t=None, offset=None):
         """Sets hopping constant for kagome lattice to t"""

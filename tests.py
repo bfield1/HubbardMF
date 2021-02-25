@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import unittest
-from math import pi, cos
+from math import pi, cos, sqrt
 import os
 
 import numpy as np
@@ -1216,8 +1216,29 @@ class TestBaseSubstrate(unittest.TestCase):
         self.assertEqual(hub.nsites, 4, msg="nsites"+msg2)
         self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
         self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
-        
+        hub.change_substrate(0, t=2, offset=-1)
+        self.assertEqual(len(hub.substrate_list), 1, msg=msg1)
+        self.assertListEqual(hub.couplings, [1.5], msg="couplings"+msg2)
+        self.assertListEqual(hub.substrate_sites, [3], msg="substrate_sites"+msg2)
+        self.assertEqual(hub.nsites, 4, msg="nsites"+msg2)
+        self.assertEqual(len(hub.nup), hub.nsites, msg="nup"+msg3)
+        self.assertEqual(len(hub.ndown), hub.nsites, msg="ndown"+msg3)
+        self.assertEqual(hub.substrate_list[0].t, 2, msg="t"+msg2)
+        self.assertEqual(hub.substrate_list[0].offset, -1, msg="offset"+msg2)
 
+class TestKagomeSubstrate(unittest.TestCase):
+    def test_init(self):
+        hub = hubbard.substrate.kagome.KagomeSubstrate()
+        msg = " not initialised correctly."
+        self.assertEqual(hub.base_nsites, 3, msg="base_sites"+msg)
+        self.assertEqual(hub.nsites, 3, msg="nsites"+msg)
+        reclat = np.array([[sqrt(3)/2, 1/3], [-sqrt(3)/2, 1/2]])
+        self.assertAlmostEqual(np.abs(hub.reclat - reclat).sum(), 0, msg="reclat"+msg)
+        pos = np.array([[0,0], [0.5,0], [0,0.5]]) # Fractional coords
+        self.assertAlmostEqual(np.abs(hub.positions - pos).sum(), 0, msg="positions"+msg)
+    #
+    def test_set_kinetic(self):
+        pass
 
 
 
