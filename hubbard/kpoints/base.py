@@ -609,7 +609,7 @@ class HubbardKPoints():
             points - boolean. Parameter for 'impurity' method. Are up spins
                 the localised ones?
         Output: electron density - (self.nsites,) ndarray, values between 0 and 1.
-        Last Modified: 2020-08-17
+        Last Modified: 2021-03-02
         """
         # Process kwargs
         alpha = kwargs.get('alpha',None)
@@ -630,6 +630,24 @@ class HubbardKPoints():
             else:
                 # Random points
                 density = random_points_density(self.nsites,nelect)
+        elif method == 'scale':
+            # Scale the existing electron density
+            # Get the existing electron density.
+            if up:
+                nelect_old = self.nelectup
+                density_old = self.nup
+            else:
+                nelect_old = self.nelectdown
+                density_old = self.ndown
+            # Scale the density.
+            if nelect_old > nelect:
+                # Reducing number of electrons, scale electrons
+                density = density_old * nelect/nelect_old
+            elif nelect_old < nelect:
+                # Increasing number of electrons. Scale holes.
+                # If scaled electrons, we'd risk going out of bounds.
+                sca = (self.nsites - nelect)/(self.nsites - nelect_old)
+                density = 1 - sca + sca * density_old
         else:
             # Cannot find the method. Raise error.
             raise ValueError("Method "+str(method)+" does not exist.")
