@@ -806,6 +806,14 @@ class TestBaseKagomeKPoints(unittest.TestCase):
         self.assertAlmostEqual(hub.chemical_potential(1), -1.4255302968938393, msg=msg)
         self.assertAlmostEqual(hub.chemical_potential(0.1), -1.4865531063827795, msg=msg)
     #
+    def test_nelect_from_chemical_potential(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=2, nrows=2, ncols=2)
+        hub.set_kmesh(3,3, method='gamma')
+        hub.set_electrons(nup=3, ndown=3, method='uniform')
+        msg = "Did not get expected number of electrons."
+        self.assertAlmostEqual(hub.nelect_from_chemical_potential(-1.4255302968938393, 1), 6, msg=msg)
+        self.assertAlmostEqual(hub.nelect_from_chemical_potential(-1.4865531063827795, 0.1), 6, msg=msg)
+    #
     def test_eigenstep(self):
         # First, a trivial test: U=0, so it converges to the ground state in one step.
         # Also Gamma point only, which makes the energy eigenstate predictable.

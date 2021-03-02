@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-02-19
+Last Modified: 2021-03-02
 Author: Bernard Field
 """
 
@@ -947,6 +947,28 @@ class HubbardKPoints():
         """
         return (self.get_spin_density()**2).mean()
     #
+    def nelect_from_chemical_potential(self, mu, T):
+        """
+        Solves for number of electrons to get a chemical potential mu.
+
+        Not self-consistent. You've got to figure that one out yourself.
+
+        Inputs: mu - number, chemical potential
+            T - non-negative number, temperature for Fermi-Dirac distribution
+        Output: N - non-negative number, number of electrons.
+
+        Last Modified: 2021-03-02
+        """
+        # Get the eigenstates
+        eup, edown, _, _ = self._eigensystem()
+        # Concatenate
+        energies = np.sort(np.hstack((eup, edown)))
+        # Solve
+        N = fermi_distribution(energies,T,mu).sum()/self.kpoints
+        # Put within valid range
+        N = min(max(N, 0), 2*self.nsites)
+        return N
+    #
     def residual(self,T=None):
         """
         Return the residual of the electron density.
@@ -1152,7 +1174,7 @@ class HubbardKPoints():
     #
     ## PLOTTERS
     #
-    def plot_bands(self, klist, nsec, T=0, emin=None, emax=None,
+    def plot_bands(self, klist, nsec, T=None, emin=None, emax=None,
                    klabels=None):
         """
         Plot the band structure, for some given k-points.
@@ -1172,12 +1194,13 @@ class HubbardKPoints():
                 labels.
         Effects: Makes a plot.
 
-        Last Modified: 2020-10-07
+        Last Modified: 2021-03-02
         """
         # Get the band structure.
         kp, bands = self.band_structure(klist, nsec)
         # Shift the bands by the chemical potential
-        bands -= self.chemical_potential(T)
+        if T is not None:
+            bands -= self.chemical_potential(T)
         # Convert the k-points from fractional to cartesian coords,
         # then turn it into a 1D distance.
         kp = np.matmul(kp, self.reclat)

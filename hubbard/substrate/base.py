@@ -24,6 +24,8 @@ class HubbardSubstrate(HubbardKPoints):
         self.couplings = []
         self.base_nsites = self.nsites
         self.substrate_sites = []
+        # A dummy object for when I want to do things with just the overlayer.
+        self.prototype = HubbardKPoints(self.nsites, allow_fractions=True)
         # u is set directly in the init of HubbardKPoints.
         # Can't use set_u there because base_nsites hasn't been set at that point.
         # So I use it here.
@@ -32,6 +34,7 @@ class HubbardSubstrate(HubbardKPoints):
         # self.reclat, if different from the identity
         # self.positions, a list of the coordinates (in fractional coords) of
         #   each atom in the TB system.
+        # self.prototype
     #
     def copy(self):
         """Returns a deep copy of itself."""
@@ -67,6 +70,50 @@ class HubbardSubstrate(HubbardKPoints):
         """
         raise NotImplementedError
     #
+    def set_electrons(self, nup=None, ndown=None, mu=None, T=None, separate_substrate=False,
+                      **kwargs):
+        """
+        Sets the electron densities.
+
+        The substrate systems have two parts which behave very differently.
+        There is the lattice, similar to all the other HubbardMF classes.
+        And there is the substrate, which is in a plane wave basis rather
+        than a position basis. And I haven't k-resolved the density in the
+        substrate either.
+        The idea here is I want the substrate to be filled uniformly to set
+        the chemical potential at a specific point.
+        """
+        # During initialisation and during density mixing, we want separate_substrate=False
+        if not separate_substrate:
+            super().set_electrons(nup=nup, ndown=ndown, **kwargs)
+            return
+        # Get the electron configuration for the lattice.
+        self.prototype.set_electrons(self.nup[0:self.base_nsites], self.ndown[0:self.base_nsites], **kwargs)
+        self.prototype.set_electrons(nup, ndown, **kwargs)
+        nup_lat = self.prototype.nup
+        ndown_lat = self.prototype.ndown
+        # Get the electron configuration for the substrate
+        if (mu is not None or T is not None) and len(self.substrate_list) > 0:
+            if T is None or mu is None:
+                raise TypeError("Provide both mu or T, or neither.")
+            # Figure out how many electrons we need in the substrate
+            N = self.nelect_from_chemical_potential(mu, T)
+            N -= nup_lat.sum() + ndown_lat.sum()
+            nsub = self.nsites - self.base_nsites # Number of substrate sites
+            # Number of electrons per substrate 'site'
+            N = min(max(N/nsub, 0), 2)
+            nup_sub = np.ones(nsub) * N/2
+            ndown_sub = np.ones(nsub) * N/2
+        else:
+            # Take the existing density
+            nup_sub = self.nup[self.base_nsites:]
+            ndown_sub = self.ndown[self.base_nsites:]
+        # Set the electron density
+        self.nup = np.hstack((nup_lat, nup_sub))
+        self.nelectup = self.nup.sum()
+        self.ndown = np.hstack((ndown_lat, ndown_sub))
+        self.nelectdown = self.ndown.sum()
+    #
     def set_u(self, u):
         # Sets u only on the main lattice, not the substrate
         try:
@@ -75,13 +122,16 @@ class HubbardSubstrate(HubbardKPoints):
             # u is a scalar
             self.u = np.zeros(self.nsites)
             self.u[0:self.base_nsites] = u
+            self.prototype.set_u(u)
         else:
             # u is a list
             if len(u) == self.nsites:
                 self.u = np.asarray(u, dtype=float)
+                self.prototype.set_u(u[0:self.base_nsites])
             elif len(u) == self.base_nsites:
                 self.u = np.zeros(self.nsites)
                 self.u[0:self.base_nsites] = u
+                self.prototype.set_u(u)
             else:
                 raise ValueError("u provided as a list, but length did not match nsites or base_nsites.")
     #
