@@ -24,6 +24,10 @@ class HubbardSubstrate(HubbardKPoints):
         self.couplings = []
         self.base_nsites = self.nsites
         self.substrate_sites = []
+        # u is set directly in the init of HubbardKPoints.
+        # Can't use set_u there because base_nsites hasn't been set at that point.
+        # So I use it here.
+        self.set_u(self.u)
         # Things child class must initialise:
         # self.reclat, if different from the identity
         # self.positions, a list of the coordinates (in fractional coords) of
@@ -63,6 +67,24 @@ class HubbardSubstrate(HubbardKPoints):
         """
         raise NotImplementedError
     #
+    def set_u(self, u):
+        # Sets u only on the main lattice, not the substrate
+        try:
+            len(u)
+        except TypeError:
+            # u is a scalar
+            self.u = np.zeros(self.nsites)
+            self.u[0:self.base_nsites] = u
+        else:
+            # u is a list
+            if len(u) == self.nsites:
+                self.u = np.asarray(u, dtype=float)
+            elif len(u) == self.base_nsites:
+                self.u = np.zeros(self.nsites)
+                self.u[0:self.base_nsites] = u
+            else:
+                raise ValueError("u provided as a list, but length did not match nsites or base_nsites.")
+    #
     def add_substrate(self, subtype, coupling, **kwargs):
         """
         Adds and initialises a new substrate
@@ -82,6 +104,7 @@ class HubbardSubstrate(HubbardKPoints):
         self.nsites += new_sites
         self.nup = np.hstack((self.nup, np.zeros(new_sites)))
         self.ndown = np.hstack((self.ndown, np.zeros(new_sites)))
+        self.u = np.hstack((self.u, np.zeros(new_sites)))
     #
     def change_substrate(self, index, subtype=None, coupling=None, **kwargs):
         """
@@ -118,6 +141,7 @@ class HubbardSubstrate(HubbardKPoints):
             self.ndown = np.hstack((self.ndown[0:i1], np.zeros(new_sites),
                                     self.ndown[i2:]))
             self.nelectdown = np.sum(self.ndown)
+            self.u = np.hstack((self.u[0:i1], np.zeros(new_sites), self.u[i2:]))
             # Update number of sites
             self.substrate_sites[index] = new_sites
             self.nsites = self.base_nsites + np.sum(self.substrate_sites)
@@ -134,6 +158,7 @@ class HubbardSubstrate(HubbardKPoints):
         self.nelectup = np.sum(self.nup)
         self.ndown = np.hstack((self.ndown[0:i1], self.ndown[i2:]))
         self.nelectdown = np.sum(self.ndown)
+        self.u = np.hstack((self.u[0:i1], self.u[i2:]))
         # Update number of segments
         del self.substrate_sites[index]
         self.nsites = self.base_nsites + np.sum(self.substrate_sites)
