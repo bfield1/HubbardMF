@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-03-02
+Last Modified: 2021-03-22
 Author: Bernard Field
 """
 
@@ -688,6 +688,50 @@ class HubbardKPoints():
         # Return the band structure
         return klist_full, self.eigenvalues_at_kpoints(klist_full)
     #
+    def band_structure_projected(self, klist, nsec, atoms):
+        """
+        Get the band structure with projections onto some atoms.
+
+        Currently the path in the Brillouin zone needs to be continuous.
+        I might eventually add support for discontinuous band structures.
+
+        Inputs: klist - list-like containing length self.dim list-likes of
+                numbers, i.e. k-points. k-points are in fractional coordinates.
+                We compute the band structure in straight lines between
+                consecutive points in klist.
+            nsec - positive integer. Number of k-points to evaluate along each
+                path (not including the starting point).
+            atoms - list of integers, indices of sites/orbitals we want to see
+                the projection onto.
+        Outputs: klist_full - a shape (nsec*(len(klist)-1)+1,self.dim) ndarray,
+                which is the list of all the k-points, in fractional coordinates.
+            bands - A shape (nsec*(len(klist)-1)+1,2,self.nsites) ndarray, which
+                is the spin polarised band structure. 1st axis maps to the list
+                of kpoints. 2nd axis is spin (up then down).
+            projections - ndarray, same shape as bands. The projections of each
+                eigenstate in bands onto atoms.
+
+        Last Modified: 2021-03-22
+        """
+        # Make the full list of k-points.
+        klist = np.asarray(klist)
+        klist_full = [ (klist[int(np.ceil(i/nsec))] - klist[int(i/nsec)])
+                       * (i/nsec - int(i/nsec)) + klist[int(i/nsec)]
+                       for i in range(nsec*(len(klist)-1)+1) ]
+        bands = np.empty((len(klist_full), 2, self.nsites))
+        projections = np.empty(bands.shape)
+        # Got to do eigensysteming manually
+        potup, potdown, _ = self._potential()
+        for n, k in enumerate(klist_full):
+            kin = self.get_kinetic(k)
+            # Spin up
+            bands[n,0], v = np.linalg.eigh(kin + potup)
+            projections[n,0] = (abs(v[atoms,:])**2).sum(axis=0)
+            # Spin down
+            bands[n,1], v = np.linalg.eigh(kin + potdown)
+            projections[n,1] = (abs(v[atoms,:])**2).sum(axis=0)
+        return klist_full, bands, projections
+    #
     def chemical_potential(self,T,N=None):
         """
         Determine chemical potential for a given temperature.
@@ -1193,7 +1237,7 @@ class HubbardKPoints():
     ## PLOTTERS
     #
     def plot_bands(self, klist, nsec, T=None, emin=None, emax=None,
-                   klabels=None):
+                   klabels=None, atoms=None):
         """
         Plot the band structure, for some given k-points.
 
@@ -1210,12 +1254,17 @@ class HubbardKPoints():
             emax - number. Maximum energy to plot.
             klabels - length len(klist) list of strings, marking the tick
                 labels.
+            atoms - optional. List of integers. Indices of sites/orbitals to
+                project onto. Shows as circles on the band structure.
         Effects: Makes a plot.
 
-        Last Modified: 2021-03-02
+        Last Modified: 2021-03-22
         """
         # Get the band structure.
-        kp, bands = self.band_structure(klist, nsec)
+        if atoms is None:
+            kp, bands = self.band_structure(klist, nsec)
+        else:
+            kp, bands, projections = self.band_structure_projected(klist, nsec, atoms)
         # Shift the bands by the chemical potential
         if T is not None:
             bands -= self.chemical_potential(T)
@@ -1232,6 +1281,12 @@ class HubbardKPoints():
         # Plot spin down bands
         for b in bands[:,1,:].transpose():
             plt.plot(klen,b,color='b')
+        # Plot projection onto atoms.
+        if atoms is not None:
+            for (b,p) in zip(bands[:,0,:].transpose(), projections[:,0,:].transpose()):
+                plt.scatter(klen,b,s=p*36, edgecolor='r', facecolor='none', zorder=2.1, marker='o')
+            for (b,p) in zip(bands[:,1,:].transpose(), projections[:,1,:].transpose()):
+                plt.scatter(klen,b,s=p*36, edgecolor='b', facecolor='none', zorder=2.1, marker='o')
         plt.ylim(emin, emax)
         plt.xticks(tics, klabels)
         plt.grid(axis='x')
