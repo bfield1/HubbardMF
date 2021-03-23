@@ -213,9 +213,9 @@ class HubbardSubstrate(HubbardKPoints):
         del self.substrate_sites[index]
         self.nsites = self.base_nsites + np.sum(self.substrate_sites)
     #
-    #def plot_bands(self, *args, **kwargs):
-    #    if 'atoms' not in kwargs:
-    #        super().plot_bands(*args, **kwargs, atoms=np.arange(self.base_nsites)
-    #    else:
-    #        super().plot_bands(*args, **kwargs)
+    def plot_bands(self, *args, **kwargs):
+        if 'atoms' not in kwargs:
+            super().plot_bands(*args, **kwargs, atoms=np.arange(self.base_nsites))
+        else:
+            super().plot_bands(*args, **kwargs)
 
