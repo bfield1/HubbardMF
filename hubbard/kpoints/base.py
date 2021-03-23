@@ -278,7 +278,7 @@ class HubbardKPoints():
             print("Residual = "+str(res)+", Ediff = "+str(de))
         return en
     #
-    def pulay_mixing(self,max_iter=100,rdiff=1e-3,T=None):
+    def pulay_mixing(self,max_iter=100,rdiff=1e-3,T=None, mu=None):
         """
         Performs Direct Inversion of the Iterative Subspace (aka Pulay mixing)
         to find the self-consistent electron density. Linear mixing is
@@ -292,7 +292,10 @@ class HubbardKPoints():
             T - optional, non-negative number. Temperature for determining
                 occupation of states. If provided, allows fractional occupation
                 and exchange between spin up and down channels.
-        Last Modified: 2020-08-10
+            mu - optional number. Chemical potential. If set, calculates mixing
+                in the grand canonical ensemble. Requires T and 
+                allow_fractions=True. Number of electrons will vary.
+        Last Modified: 2021-03-23
         """
         # Check if T is specified.
         if T is not None:
@@ -304,6 +307,11 @@ class HubbardKPoints():
                 self.toggle_allow_fractions(True)
         else:
             fermi = False
+        if mu is not None:
+            if not fermi:
+                raise TypeError("If mu is set, T must be set.")
+        # Set Grand Canonical Ensemble flag
+        gce = mu is not None
         condmax = 1e4 # Maximum permissible value of the condition number.
         # (I haven't actually tested what a good value for this is,
         # but it seems to work okay most of the time.)
@@ -316,7 +324,10 @@ class HubbardKPoints():
         for i in range(max_iter):
             # An eigenstep
             if fermi:
-                _, nup, ndown = self._eigenstep_finite_T(T)
+                if gce:
+                    _, nup, ndown = self._eigenstep_GCE(T,mu)
+                else:
+                    _, nup, ndown = self._eigenstep_finite_T(T)
             else:
                 _, nup, ndown = self._eigenstep()
             # Residue

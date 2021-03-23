@@ -835,7 +835,7 @@ class TestBaseKagomeKPoints(unittest.TestCase):
         hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nrows=2, ncols=2)
         hub.set_kmesh(3,3, method='gamma')
         # Go with completely off number of electrons
-        hub.set_electrons(nup=7, ndown=1, method='random')
+        hub.set_electrons(nup=7, ndown=5, method='random')
         en, nup, ndown = hub._eigenstep_GCE(T=0.01, mu=-1)
         self.assertAlmostEqual(en, -12.503736158177961, msg=msg1)
         self.assertAlmostEqual(np.abs(nup - 1/3).sum(), 0, msg=msg2)
@@ -1061,9 +1061,21 @@ class TestBaseKagomeKPoints(unittest.TestCase):
         hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nrows=2, ncols=2, allow_fractions=True)
         hub.set_kmesh(3,3, method='gamma')
         # Go with completely off number of electrons
-        hub.set_electrons(nup=7, ndown=1, method='random')
+        hub.set_electrons(nup=7, ndown=5, method='random')
         en = hub.linear_mixing(rdiff=1e-9, ediff=1e-9, T=0.01, mu=-1, mix=0.9)
         self.assertAlmostEqual(en, -12.503736158177961, msg=msg1)
+        self.assertAlmostEqual(np.abs(hub.nup - 1/3).sum(), 0, msg=msg2)
+        self.assertAlmostEqual(np.abs(hub.ndown - 1/3).sum(), 0, msg=msg2)
+    #
+    def test_pulay_mixing_GCE(self):
+        msg1 = "Did not get expected energy"
+        msg2 = "Did not get expected electron density"
+        # Do a U=0 test
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nrows=2, ncols=2, allow_fractions=True)
+        hub.set_kmesh(3,3, method='gamma')
+        # Go with completely off number of electrons
+        hub.set_electrons(nup=7, ndown=5, method='random')
+        hub.pulay_mixing(rdiff=1e-9, T=0.01, mu=-1)
         self.assertAlmostEqual(np.abs(hub.nup - 1/3).sum(), 0, msg=msg2)
         self.assertAlmostEqual(np.abs(hub.ndown - 1/3).sum(), 0, msg=msg2)
     #
