@@ -4,7 +4,7 @@
 Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 
 Created: 2020-08-04
-Last Modified: 2020-11-10
+Last Modified: 2021-03-23
 Author: Bernard Field
 """
 
@@ -20,7 +20,7 @@ from hubbard.kagome import KagomeHubbard
 import hubbard.progress as progress
 
 
-def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500):
+def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500,mu=None):
     """
     Brings a Hubbard model to self-consistency,
     regardless of how long it takes.
@@ -30,40 +30,41 @@ def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500):
         T - number, optional. Temperature for Fermi Dirac distribution.
         debug - Boolean, whether to print progress.
         interval - integer. How often to print progress.
-    Last Modified: 2020-08-11
+        mu - number, optional. Chemical potential for GCE mixing.
+    Last Modified: 2021-03-23
     """
     # Suppress ConvergenceWarnings.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore",ConvergenceWarning)
         # We need to perform an initial linear mixing.
-        while hub.residual(T) > rdiff_initial:
-            last_residual = hub.residual(T)
+        while hub.residual(T,mu) > rdiff_initial:
+            last_residual = hub.residual(T,mu)
             hub.linear_mixing(max_iter=interval,ediff=0.1,
-                                 rdiff=rdiff_initial,T=T,print_residual=False)
-            if debug: print("Linear mixing. Residual="+str(hub.residual(T)))
+                                 rdiff=rdiff_initial,T=T,print_residual=False,mu=mu)
+            if debug: print("Linear mixing. Residual="+str(hub.residual(T,mu)))
             # Catch a pathological case where residual doesn't decrease.
-            if np.isclose(last_residual,hub.residual(T)):
+            if np.isclose(last_residual,hub.residual(T,mu)):
                 if debug: print("Residual didn't decrease. Trying smaller mixing.")
                 hub.linear_mixing(max_iter=interval,ediff=0.1,mix=0.1,
-                                 rdiff=rdiff_initial,T=T,print_residual=False)
+                                 rdiff=rdiff_initial,T=T,print_residual=False,mu=mu)
                 if debug: print("Linear mixing (mix=0.1). Residual="
-                                +str(hub.residual(T)))
+                                +str(hub.residual(T,mu)))
         # Now do main mixing.
-        while hub.residual(T) > rdiff:
+        while hub.residual(T,mu) > rdiff:
             try:
-                hub.pulay_mixing(max_iter=interval,rdiff=rdiff,T=T)
-                if debug: print("Pulay mixing. Residual="+str(hub.residual(T)))
+                hub.pulay_mixing(max_iter=interval,rdiff=rdiff,T=T,mu=mu)
+                if debug: print("Pulay mixing. Residual="+str(hub.residual(T,mu)))
             except MixingError:
                 # Pulay mixing has a chance to take the electron density out of
                 # bounds. I've never seen it so far, but I'm ready to catch it.
                 if debug: print("Failure in Pulay mixing. Residual="
-                                +str(hub.residual(T))+". Doing some linear mixing.")
-                hub.linear_mixing(max_iter=10,rdiff=rdiff,ediff=0.1,T=T)
-                if debug: print("Linear mixing. Residual="+str(hub.residual(T)))
+                                +str(hub.residual(T,mu))+". Doing some linear mixing.")
+                hub.linear_mixing(max_iter=10,rdiff=rdiff,ediff=0.1,T=T,mu=mu)
+                if debug: print("Linear mixing. Residual="+str(hub.residual(T,mu)))
 
 def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
                T=None,interval=500,positive_only=True,repeats=1,verbose=False,
-               mmin=None,mmax=None,quiet=False):
+               mmin=None,mmax=None,quiet=False,mu=None):
     """
     For a given set of parameters, steps through different nup and ndown ratios.
     Relaxes the Hubbard systems, and returns all the results as a list.
@@ -86,10 +87,11 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
         mmax - optional number. Maximum magnetization to look at.
             Defaults to the smaller of n or nsites.
         quiet - Boolean. Verbose overrules.
+        mu - optional number. Chemical potential for GCE mixing.
     
     Output: list of Hubbard objects.
 
-    Last Modified: 2020-11-10
+    Last Modified: 2021-03-23
     """
     # Initialise
     hub_list = [] # Results list
@@ -127,7 +129,7 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
                     # Set the electron density
                     hub.set_electrons(nup=nup,ndown=n-nup,method='random',alpha=alpha)
                     # Converge
-                    converge(hub,rdiff,rdiff_initial,T=T,interval=interval,debug=verbose)
+                    converge(hub,rdiff,rdiff_initial,T=T,interval=interval,debug=verbose,mu=mu)
                     # Record
                     hub_list.append(hub)
                 except KeyboardInterrupt:
