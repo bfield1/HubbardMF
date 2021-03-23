@@ -797,6 +797,12 @@ class TestBaseKagomeKPoints(unittest.TestCase):
         self.assertAlmostEqual(hub.energy(T=1), -1.4866311209589655, msg=msg)
         self.assertAlmostEqual(hub.energy(T=0.1), -2.5809756795204564, msg=msg)
     #
+    def test_energy_GCE(self):
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nup=4, ndown=4, nrows=2, ncols=2)
+        hub.set_kmesh(3,3, method='gamma')
+        msg = "Did not get expected energy."
+        self.assertAlmostEqual(hub.energy(T=0.01, mu=-1), -12.503736158177961, msg=msg)
+    #
     def test_chemical_potential(self):
         # Test an arbitrary example.
         hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=2, nrows=2, ncols=2)
@@ -813,6 +819,27 @@ class TestBaseKagomeKPoints(unittest.TestCase):
         msg = "Did not get expected number of electrons."
         self.assertAlmostEqual(hub.nelect_from_chemical_potential(-1.4255302968938393, 1), 6, msg=msg)
         self.assertAlmostEqual(hub.nelect_from_chemical_potential(-1.4865531063827795, 0.1), 6, msg=msg)
+    #
+    def test_eigenstep_GCE(self):
+        # First we'll test a static case, where electron density is not expected to change.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=2, nrows=2, ncols=2)
+        hub.set_kmesh(3,3, method='gamma')
+        hub.set_electrons(nup=3, ndown=3, method='uniform')
+        en, nup, ndown = hub._eigenstep_GCE(T=0.1, mu=-1.4865531063827795)
+        msg1 = "Did not get expected energy"
+        msg2 = "Did not get expected electron density."
+        self.assertAlmostEqual(en, -6.528198352601738, msg=msg1)
+        self.assertAlmostEqual(np.abs(nup - 0.25).sum(), 0, msg=msg2)
+        self.assertAlmostEqual(np.abs(ndown - 0.25).sum(), 0, msg=msg2)
+        # Now we'll do a U=0 case. Put chemical potential at Dirac point.
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nrows=2, ncols=2)
+        hub.set_kmesh(3,3, method='gamma')
+        # Go with completely off number of electrons
+        hub.set_electrons(nup=7, ndown=1, method='random')
+        en, nup, ndown = hub._eigenstep_GCE(T=0.01, mu=-1)
+        self.assertAlmostEqual(en, -12.503736158177961, msg=msg1)
+        self.assertAlmostEqual(np.abs(nup - 1/3).sum(), 0, msg=msg2)
+        self.assertAlmostEqual(np.abs(ndown - 1/3).sum(), 0, msg=msg2)
     #
     def test_eigenstep(self):
         # First, a trivial test: U=0, so it converges to the ground state in one step.
@@ -1026,6 +1053,19 @@ class TestBaseKagomeKPoints(unittest.TestCase):
             self.assertAlmostEqual(hub.nelectup, 2, msg=msg2)
             self.assertAlmostEqual(hub.nelectdown, 1, msg=msg2)
             self.assertLessEqual(hub.residual(0.1), 1e-8, msg=msg3)
+    #
+    def test_linear_mixing_GCE(self):
+        msg1 = "Did not get expected energy"
+        msg2 = "Did not get expected electron density"
+        # Do a U=0 test
+        hub = hubbard.kpoints.kagome.KagomeHubbardKPoints(u=0, nrows=2, ncols=2, allow_fractions=True)
+        hub.set_kmesh(3,3, method='gamma')
+        # Go with completely off number of electrons
+        hub.set_electrons(nup=7, ndown=1, method='random')
+        en = hub.linear_mixing(rdiff=1e-9, ediff=1e-9, T=0.01, mu=-1, mix=0.9)
+        self.assertAlmostEqual(en, -12.503736158177961, msg=msg1)
+        self.assertAlmostEqual(np.abs(hub.nup - 1/3).sum(), 0, msg=msg2)
+        self.assertAlmostEqual(np.abs(hub.ndown - 1/3).sum(), 0, msg=msg2)
     #
     def test_pulay_mixing(self):
         msg1 = "Density did not have expected value."

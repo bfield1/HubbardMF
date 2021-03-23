@@ -1082,7 +1082,7 @@ class HubbardKPoints():
         N = min(max(N, 0), 2*self.nsites)
         return N
     #
-    def residual(self,T=None):
+    def residual(self,T=None,mu=None):
         """
         Return the residual of the electron density.
         
@@ -1091,15 +1091,19 @@ class HubbardKPoints():
         is 'small', ideally 0.
 
         Input: T - optional number. Temperature for eigenstep.
+            mu - optional number. Chemical potential for GCE eigenstep.
         Outputs: residual , a non-negative number
 
-        Last Modified: 2020-08-06
+        Last Modified: 2021-03-23
         """
         # Get densities after one iteration.
         if T is None:
             _, nupnew, ndownnew = self._eigenstep()
         else:
-            _, nupnew, ndownnew = self._eigenstep_finite_T(T)
+            if mu is None:
+                _, nupnew, ndownnew = self._eigenstep_finite_T(T)
+            else:
+                _, nupnew, ndownnew = self._eigenstep_GCE(T,mu)
         # Calculate residual squared.
         residual_up = nupnew - self.nup
         residual_down = ndownnew - self.ndown
