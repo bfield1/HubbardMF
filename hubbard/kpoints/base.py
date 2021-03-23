@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-03-22
+Last Modified: 2021-03-23
 Author: Bernard Field
 """
 
@@ -196,7 +196,7 @@ class HubbardKPoints():
              "Residual in last step is "+str(np.linalg.norm(res))+".")
         return
     #
-    def linear_mixing(self,max_iter=100,ediff=1e-6,mix=0.5,rdiff=5e-4,T=None,print_residual=False):
+    def linear_mixing(self,max_iter=100,ediff=1e-6,mix=0.5,rdiff=5e-4,T=None,print_residual=False,mu=None):
         """
         Iterates the Hubbard Hamiltonian towards self-consistency.
         Uses linear density mixing. pnew = (1-mix)*pin + mix*pout
@@ -212,14 +212,17 @@ class HubbardKPoints():
                 lowest eigenstates. If set, the number of up and down
                 spins is likely to vary, although the total number of
                 spins should be constant. Requires allow_fractions=True.
-            print_residual - Boolean, default True. Prints the residual
+            print_residual - Boolean, default False. Prints the residual
                 of the density. You want this to be small.
                 Set False if you are looping through stuff to avoid flooding
                 stdout.
+            mu - optional number. Chemical potential. If set, calculates mixing
+                in the grand canonical ensemble. Requires T and 
+                allow_fractions=True. Number of electrons will vary.
         Outputs: energy.
         Effects: sets nup and ndown to new values.
 
-        Last Modified: 2020-08-03
+        Last Modified: 2021-03-23
         """
         # Check if we have specified a temperature
         if T is not None:
@@ -231,12 +234,20 @@ class HubbardKPoints():
                 self.toggle_allow_fractions(True)
         else:
             fermi = False
+        if mu is not None:
+            if not fermi:
+                raise TypeError("If mu is provided, T must be provided.")
+        # Set Grand Canonical Ensemble flag
+        gce = mu is not None
         # Initialise first energy as a very large number.
         en = 1e12
         for i in range(max_iter):
             # Do a step
             if fermi:
-                ennew,nupnew,ndownnew = self._eigenstep_finite_T(T)
+                if gce:
+                    ennew,nupnew,ndownnew = self._eigenstep_GCE(T,mu)
+                else:
+                    ennew,nupnew,ndownnew = self._eigenstep_finite_T(T)
             else:
                 ennew,nupnew,ndownnew = self._eigenstep()
             # Do mixing
@@ -512,6 +523,38 @@ class HubbardKPoints():
         weightdown = fermi_distribution(edown,T,mu)
         nup = np.sum(weightup*abs(vup)**2,1)/self.kpoints
         ndown = np.sum(weightdown*abs(vdown)**2,1)/self.kpoints
+        # Return
+        return en, nup, ndown
+    #
+    def _eigenstep_GCE(self,T,mu):
+        """
+        Evaluate the Hamiltonian, get new energy and density, in grand canonical ensemble
+
+        Takes the electron densities and the parameters needed to
+        make the Hamiltonian, then returns the energy and the
+        electron densities predicted by the eigenvectors.
+        Fills the eigenstates by assuming a Fermi-Dirac distribution
+        with temperature T and chemical potential mu.
+
+        Inputs: T - positive number, temperature for Fermi Dirac distribution.
+            mu - number, chemical potential
+        Outputs: energy, nup, ndown
+
+        Last Modified: 2021-03-23
+        """
+        # Generate the potential energy.
+        _, _, offset = self._potential()
+        # Solve for the single-electron energy levels.
+        eup, edown, vup, vdown = self._eigensystem()
+        # Calculate energy
+        en = self._energy_from_states(eup,edown,offset,T,mu)
+        # Get new electron densities.
+        weightup = fermi_distribution(eup,T,mu)
+        weightdown = fermi_distribution(edown,T,mu)
+        nup = np.sum(weightup*abs(vup)**2,1)/self.kpoints
+        ndown = np.sum(weightdown*abs(vdown)**2,1)/self.kpoints
+        # Apply GCE correction to energy (-mu*N)
+        en -= mu * (nup.sum() + ndown.sum())
         # Return
         return en, nup, ndown
     #
@@ -885,7 +928,7 @@ class HubbardKPoints():
                 edown[imindown:imaxdown+1],
                 abs(vdown.transpose()[imindown:imaxdown+1])**2)
     #
-    def energy(self,T=None):
+    def energy(self,T=None, mu=None):
         """
         Calculates the energy from the current electron density.
         Does not go through self-consistency.
@@ -893,18 +936,26 @@ class HubbardKPoints():
         Input: T - optional positive number. If provided,
             energy is calculated with a Fermi distribution
             for the occupancies.
+            mu - optional number. If provided, T must be provided.
+            Chemical potential. Calculates energy within grand canonical
+            ensemble.
         Output: energy, a number.
 
-        Last Modified: 2020-09-16
+        Last Modified: 2021-03-23
         """
         # Generate the potential energy.
         _, _, offset = self._potential()
+        # Extra offset if grand canonical ensemble
+        if mu is not None:
+            offset -= mu * self.get_electron_number()
         # Solve for the single-electron energy levels.
         eup, edown, _, _ = self._eigensystem()
         if T is not None:
-            mu = self.chemical_potential(T)
+            if mu is None:
+                mu = self.chemical_potential(T)
         else:
-            mu = None
+            if mu is not None:
+                raise TypeError("If mu is provided, T must be provided.")
         return self._energy_from_states(eup,edown,offset,T=T,mu=mu)
     #
     def fermi(self, midpoint=False):
