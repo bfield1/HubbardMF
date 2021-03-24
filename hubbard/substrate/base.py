@@ -74,6 +74,9 @@ class HubbardSubstrate(HubbardKPoints):
         """Gets the number of electrons on the lattice (not substrate)."""
         return self.nup[0:self.base_nsites].sum() + self.ndown[0:self.base_nsites].sum()
     #
+    def local_magnetic_moment(self):
+        return ((self.nup[0:self.base_nsites] - self.ndown[0:self.base_nsites])**2).mean()
+    #
     def set_electrons(self, nup=None, ndown=None, mu=None, T=None, separate_substrate=False,
                       **kwargs):
         """
