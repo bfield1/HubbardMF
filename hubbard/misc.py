@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Miscellaneous functions intended for use with the Hubbard package."""
 
+import warnings
+
 import numpy as np
 
 
@@ -32,7 +34,7 @@ def fermi_distribution(e,T,mu):
         mu - chemical potential
     Output: scalar between 0 and 1 if inputs are scalar.
         ndarray of scalars matching input size if otherwise.
-    Last Modified: 2020-07-23
+    Last Modified: 2021-03-24
     """
     if T==0:
         # T==0 case is a step function.
@@ -45,7 +47,13 @@ def fermi_distribution(e,T,mu):
             return np.asarray(comp).astype(int)
     else:
         # Generic T case.
-        return 1/(np.exp((e-mu)/T)+1)
+        with warnings.catch_warnings():
+            # Silence an overflow case in exp
+            warnings.filterwarnings("ignore", category=RuntimeWarning,
+                    message="overflow encountered in exp")
+            # If the exponent is large, np.exp = inf, and I get a warning.
+            # But 1/inf = 0, which is expected behaviour.
+            return 1/(np.exp((e-mu)/T)+1)
 
 def random_density(n,total,alpha=None):
     """
