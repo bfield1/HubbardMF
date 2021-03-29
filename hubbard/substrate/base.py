@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import copy
 from inspect import isclass
 from math import sqrt, pi
 
