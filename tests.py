@@ -599,10 +599,10 @@ class TestKagomeKPointsIO(unittest.TestCase):
                 print("Testing files of eigensystem not found.")
             else:
                 eup, edown, vup, vdown = hub._eigensystem()
-                self.assertEqual(np.abs(eup - eup2).sum(), 0, msg="eup"+msg)
-                self.assertEqual(np.abs(edown - edown2).sum(), 0, msg="edown"+msg)
-                self.assertEqual(np.abs(vup - vup2).sum(), 0, msg="vup"+msg)
-                self.assertEqual(np.abs(vdown - vdown2).sum(), 0, msg="vdown"+msg)
+                self.assertAlmostEqual(np.abs(eup - eup2).sum(), 0, msg="eup"+msg)
+                self.assertAlmostEqual(np.abs(edown - edown2).sum(), 0, msg="edown"+msg)
+                self.assertAlmostEqual(np.abs(np.abs(vup) - np.abs(vup2)).sum(), 0, msg="vup"+msg)
+                self.assertAlmostEqual(np.abs(np.abs(vdown) - np.abs(vdown2)).sum(), 0, msg="vdown"+msg)
     #
     def test_save(self):
         # If two Hubbard systems are identical, they should have the same
