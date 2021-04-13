@@ -8,6 +8,7 @@ Has periodic boundary conditions and explores full Brillouin zone.
 Created: 2020-09-17
 Last Modified: 2020-11-13
 Author: Bernard Field
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
 
 import json

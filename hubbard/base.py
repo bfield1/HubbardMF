@@ -3,6 +3,8 @@
 """
 Base class for the Mean field Hubbard model, at the Gamma point only.
 
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
+
 Has the mixing routines and other things which aren't dependent on the
 specifics of the lattice.
 

@@ -8,6 +8,7 @@ Periodic boundary conditions are assumed.
 Created: 2020-07-03
 Last Modified: 2020-11-13
 Author: Bernard Field
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
 
 import numpy as np
