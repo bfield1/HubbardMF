@@ -6,6 +6,7 @@ Analysis scripts and batch processing for a single unit cell of Kagome Hubbard.
 Created: 2020-09-18
 Last Modified: 2020-09-21
 Author: Bernard Field
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
 
 import math

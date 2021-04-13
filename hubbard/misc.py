@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 """Miscellaneous functions intended for use with the Hubbard package."""
+#    Copyright (C) 2021 Bernard Field, GNU GPL v3+
+
 
 import warnings
 

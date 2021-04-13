@@ -8,6 +8,7 @@ custom progress bar which doesn't rely on it.
 Assumes that no other printing takes place.
 Author: Bernard Field
 Last Modified: 2020-08-11
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
 
 import sys

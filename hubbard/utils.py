@@ -6,6 +6,7 @@ Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 Created: 2020-08-04
 Last Modified: 2021-03-23
 Author: Bernard Field
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
 
 import warnings

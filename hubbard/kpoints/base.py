@@ -29,6 +29,7 @@ integer. Please don't change it after initialisation.
 Created: 2020-09-16
 Last Modified: 2021-03-23
 Author: Bernard Field
+    Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
 
 from warnings import warn
