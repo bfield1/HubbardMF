@@ -4,7 +4,7 @@
 Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 
 Created: 2020-08-04
-Last Modified: 2021-03-23
+Last Modified: 2021-04-14
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -239,15 +239,16 @@ def boltzmann_average(hub_list,T,func,Ten=None):
     # Return, taking the weighted average.
     return np.sum(vals*boltz)
 
-def cull_list(hub_list,e,T=None):
+def cull_list(hub_list,e,T=None, mu=None):
     """
     Returns a hub_list with only states with energy less than e above
     the minimum energy.
     Inputs: hub_list - list of Hubbard objects
         e - number
         T - number, optional, temperature for calculating energy.
+        mu - number, optional, chemical potential for energy.
     Output: list of Hubbard objects.
-    Last Modified: 2020-08-11
+    Last Modified: 2021-04-14
     """
-    en = np.array([h.energy(T) for h in hub_list])
+    en = np.array([h.energy(T,mu) for h in hub_list])
     return list(np.asarray(hub_list)[en <= (en.min()+e)])
