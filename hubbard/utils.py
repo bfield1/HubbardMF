@@ -4,7 +4,7 @@
 Helper scripts for analysing my Mean field Hubbard model of the Kagome lattice.
 
 Created: 2020-08-04
-Last Modified: 2021-04-14
+Last Modified: 2021-04-16
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -32,36 +32,38 @@ def converge(hub,rdiff,rdiff_initial=1e-2,T=None,debug=False,interval=500,mu=Non
         debug - Boolean, whether to print progress.
         interval - integer. How often to print progress.
         mu - number, optional. Chemical potential for GCE mixing.
-    Last Modified: 2021-03-23
+    Last Modified: 2021-04-16
     """
     # Suppress ConvergenceWarnings.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore",ConvergenceWarning)
         # We need to perform an initial linear mixing.
-        while hub.residual(T,mu) > rdiff_initial:
-            last_residual = hub.residual(T,mu)
-            hub.linear_mixing(max_iter=interval,ediff=0.1,
-                                 rdiff=rdiff_initial,T=T,print_residual=False,mu=mu)
-            if debug: print("Linear mixing. Residual="+str(hub.residual(T,mu)))
+        res = hub.residual(T,mu) # Initial determination of the residual.
+        while res > rdiff_initial:
+            last_residual = res
+            res = hub.linear_mixing(max_iter=interval,ediff=0.1,
+                                 rdiff=rdiff_initial,T=T,print_residual=False,mu=mu,return_energy=False)
+            if debug: print("Linear mixing. Residual={0}".format(res))
             # Catch a pathological case where residual doesn't decrease.
-            if np.isclose(last_residual,hub.residual(T,mu)):
+            if np.isclose(last_residual,res):
                 if debug: print("Residual didn't decrease. Trying smaller mixing.")
-                hub.linear_mixing(max_iter=interval,ediff=0.1,mix=0.1,
-                                 rdiff=rdiff_initial,T=T,print_residual=False,mu=mu)
-                if debug: print("Linear mixing (mix=0.1). Residual="
-                                +str(hub.residual(T,mu)))
+                res = hub.linear_mixing(max_iter=interval,ediff=0.1,mix=0.1,
+                                 rdiff=rdiff_initial,T=T,print_residual=False,mu=mu,return_energy=False)
+                if debug: print("Linear mixing (mix=0.1). Residual={0}".format(res))
         # Now do main mixing.
-        while hub.residual(T,mu) > rdiff:
+        while res > rdiff:
             try:
-                hub.pulay_mixing(max_iter=interval,rdiff=rdiff,T=T,mu=mu)
-                if debug: print("Pulay mixing. Residual="+str(hub.residual(T,mu)))
+                res = hub.pulay_mixing(max_iter=interval,rdiff=rdiff,T=T,mu=mu)
+                if debug: print("Pulay mixing. Residual={0}".format(res))
             except MixingError:
                 # Pulay mixing has a chance to take the electron density out of
-                # bounds. I've never seen it so far, but I'm ready to catch it.
-                if debug: print("Failure in Pulay mixing. Residual="
-                                +str(hub.residual(T,mu))+". Doing some linear mixing.")
-                hub.linear_mixing(max_iter=10,rdiff=rdiff,ediff=0.1,T=T,mu=mu)
-                if debug: print("Linear mixing. Residual="+str(hub.residual(T,mu)))
+                # bounds. It can happen when Pulay mixing diverges.
+                # Since there was an error, the residual was not returned.
+                if debug:
+                    print("Failure in Pulay mixing. Residual={0}. "
+                          "Doing some linear mixing.".format(hub.residual(T,mu)))
+                res = hub.linear_mixing(max_iter=10,rdiff=rdiff,ediff=0.1,T=T,mu=mu, return_energy=False)
+                if debug: print("Linear mixing. Residual={0}".format(res))
 
 def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
                T=None,interval=500,positive_only=True,repeats=1,verbose=False,

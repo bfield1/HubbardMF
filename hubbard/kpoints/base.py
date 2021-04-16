@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-03-23
+Last Modified: 2021-04-16
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -114,9 +114,7 @@ class HubbardKPoints():
         A more elaborate scheme than linear mixing. It adds a sort of
         extra internal linear mixing step with an automatically chosen
         ratio and including information from the previous step.
-        Unlike linear mixing, here I minimise the residual instead of
-        the energy (although there is nothing stopping me from doing that
-        in linear_mixing too).
+        Here I minimise the residual.
         See Sec IIB of D.D.Johnson 1988 PRB v38 n 18 and
         Ref's 3 and 4 therein for the algorithm.
 
@@ -127,7 +125,11 @@ class HubbardKPoints():
             T - optional, non-negative number. Temperature for determining
                 occupation of states. If provided, allows fractional occupation
                 and exchange between spin up and down channels.
-        Last Modified: 2020-08-03
+            mu - optional, number. Chemical potential for Grand Canonical
+                Ensemble. Number of electrons becomes non-constant. Requires
+                fractional electrons and setting T.
+        Output: number, the residual
+        Last Modified: 2021-04-16
         """
         # Check if we have specified a temperature
         if T is not None:
@@ -139,6 +141,11 @@ class HubbardKPoints():
                 self.toggle_allow_fractions(True)
         else:
             fermi = False
+        if mu is not None:
+            if not fermi:
+                raise TypeError("If mu is provided, T must be provided.")
+        # Set Grand Canonical Ensemble flag
+        gce = mu is not None
         # We have to run an initial step by normal linear mixing.
         if fermi:
             _, nupoutold, ndownoutold = self._eigenstep_finite_T(T)
@@ -148,7 +155,7 @@ class HubbardKPoints():
         resold = np.concatenate((nupoutold - self.nup,ndownoutold - self.ndown))
         # If the residue is sufficiently small, we're done.
         if np.linalg.norm(resold) < rdiff:
-            return
+            return np.linalg.norm(resold)
         # Record old input densities.
         nupinold = self.nup
         ndowninold = self.ndown
@@ -158,14 +165,17 @@ class HubbardKPoints():
         for i in range(max_iter):
             # Put in electron density, get electron density out.
             if fermi:
-                _, nupout, ndownout = self._eigenstep_finite_T(T)
+                if gce:
+                    _, nupout, ndownout = self._eigenstep_GCE(T,mu)
+                else:
+                    _, nupout, ndownout = self._eigenstep_finite_T(T)
             else:
                 _, nupout, ndownout = self._eigenstep()
             # Get residue
             res = np.concatenate((nupout-self.nup,ndownout-self.ndown))
             # If the residue is sufficiently small, we're done.
             if np.linalg.norm(res) < rdiff:
-                return
+                return np.linalg.norm(res)
             # Get Anderson mixing parameter
             beta = np.dot(res,res-resold)/(np.dot(res-resold,res-resold))
             # Do the Anderson pre-mixing mixing
@@ -195,9 +205,9 @@ class HubbardKPoints():
         # Done, but due to exceeding the maximum iterations.
         warn("Self-consistency not reached after "+str(max_iter)+" steps. "
              "Residual in last step is "+str(np.linalg.norm(res))+".")
-        return
+        return np.linalg.norm(res)
     #
-    def linear_mixing(self,max_iter=100,ediff=1e-6,mix=0.5,rdiff=5e-4,T=None,print_residual=False,mu=None):
+    def linear_mixing(self,max_iter=100,ediff=1e-6,mix=0.5,rdiff=5e-4,T=None,print_residual=False,mu=None,return_energy=True):
         """
         Iterates the Hubbard Hamiltonian towards self-consistency.
         Uses linear density mixing. pnew = (1-mix)*pin + mix*pout
@@ -220,10 +230,12 @@ class HubbardKPoints():
             mu - optional number. Chemical potential. If set, calculates mixing
                 in the grand canonical ensemble. Requires T and 
                 allow_fractions=True. Number of electrons will vary.
-        Outputs: energy.
+            return_energy - Boolean. If true, return the energy. If false,
+                return the residual.
+        Outputs: a number: energy or residual
         Effects: sets nup and ndown to new values.
 
-        Last Modified: 2021-03-23
+        Last Modified: 2021-04-16
         """
         # Check if we have specified a temperature
         if T is not None:
@@ -277,7 +289,10 @@ class HubbardKPoints():
                  ConvergenceWarning)
         if print_residual:
             print("Residual = "+str(res)+", Ediff = "+str(de))
-        return en
+        if return_energy:
+            return en
+        else:
+            return res
     #
     def pulay_mixing(self,max_iter=100,rdiff=1e-3,T=None, mu=None):
         """
@@ -296,7 +311,8 @@ class HubbardKPoints():
             mu - optional number. Chemical potential. If set, calculates mixing
                 in the grand canonical ensemble. Requires T and 
                 allow_fractions=True. Number of electrons will vary.
-        Last Modified: 2021-03-23
+        Output: number, the residual
+        Last Modified: 2021-04-16
         """
         # Check if T is specified.
         if T is not None:
@@ -335,7 +351,7 @@ class HubbardKPoints():
             res = np.concatenate((nup - self.nup, ndown - self.ndown))
             # If the residue is sufficiently small, we're done.
             if np.linalg.norm(res) < rdiff:
-                return
+                return np.linalg.norm(res)
             # Record
             densities_up = np.vstack((densities_up,nup))
             densities_down = np.vstack((densities_down,ndown))
@@ -391,7 +407,7 @@ class HubbardKPoints():
         warn("Self-consistency not reached after "+str(max_iter)+" steps. "
              "Residual in last step is "+str(np.linalg.norm(res))+".",
              ConvergenceWarning)
-        return
+        return np.linalg.norm(res)
     #
     def set_electrons(self,nup=None,ndown=None,backup=True,**kwargs):
         """
