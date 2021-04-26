@@ -94,7 +94,7 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
     
     Output: list of Hubbard objects.
 
-    Last Modified: 2021-03-23
+    Last Modified: 2021-04-26
     """
     # Initialise
     hub_list = [] # Results list
@@ -109,6 +109,9 @@ def sweep_spin(template,n,nsteps,rdiff,rdiff_initial=1e-2,
             mmin = -mmax
     nupmin = max(0,n-nsites,(n+mmin)/2)
     nupmax = min((mmax+n)/2,n,nsites)
+    # Check an error case
+    if nupmin != nupmax and nsteps == 1:
+        raise ValueError("Cannot have nsteps=1 when have unequal mmin and mmax.")
     # Pick an alpha
     alpha = choose_alpha(nsites,min(nupmax,nsites/2))*10
     # Progress bar
