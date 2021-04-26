@@ -8,8 +8,8 @@ import numpy as np
 from scipy.linalg import block_diag
 
 from hubbard.kpoints.base import HubbardKPoints
-import substratetb.substrate as sub
-from substratetb.dftsubstrate import DFTSubstrate
+import hubbard.substrate.substrate as sub
+from hubbard.substrate.dftsubstrate import DFTSubstrate
 
 class HubbardSubstrate(HubbardKPoints):
     """Base class for coupling Hubbard model to substrates"""
