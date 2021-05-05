@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-04-16
+Last Modified: 2021-05-05
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -109,7 +109,7 @@ class HubbardKPoints():
     #
     ## ELECTRON DENSITY MODIFIERS
     #
-    def anderson_mixing(self,max_iter=100,rdiff=1e-6,mix=0.5,T=None):
+    def anderson_mixing(self,max_iter=100,rdiff=1e-6,mix=0.5,T=None,mu=None):
         """
         A more elaborate scheme than linear mixing. It adds a sort of
         extra internal linear mixing step with an automatically chosen
