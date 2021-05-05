@@ -207,7 +207,7 @@ class HubbardKPoints():
              "Residual in last step is "+str(np.linalg.norm(res))+".")
         return np.linalg.norm(res)
     #
-    def linear_mixing(self,max_iter=100,ediff=1e-6,mix=0.5,rdiff=5e-4,T=None,print_residual=False,mu=None,return_energy=True):
+    def linear_mixing(self,max_iter=100,ediff=1e-6,mix=0.5,rdiff=5e-4,T=None,print_residual=False,mu=None,return_energy=True,debug=False):
         """
         Iterates the Hubbard Hamiltonian towards self-consistency.
         Uses linear density mixing. pnew = (1-mix)*pin + mix*pout
@@ -232,7 +232,13 @@ class HubbardKPoints():
                 allow_fractions=True. Number of electrons will vary.
             return_energy - Boolean. If true, return the energy. If false,
                 return the residual.
-        Outputs: a number: energy or residual
+            debug - Boolean. If True, records the density and other variables
+                at each step and returns it in a dictionary.
+        Outputs: if not debug: a number- energy or residual
+            if debug: a dictionary of lists. Each list entry is the value at
+            the end of each step. (Except 'energy', which is the value at
+            the start of the step.) Dictionary has nup, ndown, residual, and
+            energy.
         Effects: sets nup and ndown to new values.
 
         Last Modified: 2021-04-16
@@ -252,6 +258,9 @@ class HubbardKPoints():
                 raise TypeError("If mu is provided, T must be provided.")
         # Set Grand Canonical Ensemble flag
         gce = mu is not None
+        # Initialise debug data
+        if debug:
+            debugdata = {'nup':[], 'ndown':[], 'residual':[], 'energy':[]}
         # Initialise first energy as a very large number.
         en = 1e12
         for i in range(max_iter):
@@ -279,6 +288,13 @@ class HubbardKPoints():
             # Check for convergence
             res = np.linalg.norm(np.concatenate((residual_up,residual_down)))
             de = abs(ennew - en)
+            # Before breaking, record debug data.
+            if debug:
+                debugdata['nup'].append(nupnext)
+                debugdata['ndown'].append(ndownnext)
+                debugdata['residual'].append(res)
+                debugdata['energy'].append(ennew)
+            # Check for convergence.
             if de < ediff and res < rdiff:
                 break
             en = ennew
@@ -289,12 +305,14 @@ class HubbardKPoints():
                  ConvergenceWarning)
         if print_residual:
             print("Residual = "+str(res)+", Ediff = "+str(de))
-        if return_energy:
+        if debug:
+            return debugdata
+        elif return_energy:
             return en
         else:
             return res
     #
-    def pulay_mixing(self,max_iter=100,rdiff=1e-3,T=None, mu=None):
+    def pulay_mixing(self,max_iter=100,rdiff=1e-3,T=None, mu=None, debug=False):
         """
         Performs Direct Inversion of the Iterative Subspace (aka Pulay mixing)
         to find the self-consistent electron density. Linear mixing is
@@ -311,8 +329,13 @@ class HubbardKPoints():
             mu - optional number. Chemical potential. If set, calculates mixing
                 in the grand canonical ensemble. Requires T and 
                 allow_fractions=True. Number of electrons will vary.
+            debug - Boolean. If True, records the density and other variables
+                at each step and returns it in a dictionary.
+        Outputs: if not debug: the residual
+            if debug: a dictionary of lists. Each list entry is the value at
+            the end of each step. Dictionary has nup, ndown, and residual.
         Output: number, the residual
-        Last Modified: 2021-04-16
+        Last Modified: 2021-05-05
         """
         # Check if T is specified.
         if T is not None:
@@ -329,6 +352,9 @@ class HubbardKPoints():
                 raise TypeError("If mu is set, T must be set.")
         # Set Grand Canonical Ensemble flag
         gce = mu is not None
+        # Initialise debug record
+        if debug:
+            debugdata = {'nup':[], 'ndown':[], 'residual':[]}
         condmax = 1e4 # Maximum permissible value of the condition number.
         # (I haven't actually tested what a good value for this is,
         # but it seems to work okay most of the time.)
@@ -351,7 +377,13 @@ class HubbardKPoints():
             res = np.concatenate((nup - self.nup, ndown - self.ndown))
             # If the residue is sufficiently small, we're done.
             if np.linalg.norm(res) < rdiff:
-                return np.linalg.norm(res)
+                if debug:
+                    debugdata['nup'].append(self.nup.copy())
+                    debugdata['ndown'].append(self.ndown.copy())
+                    debugdata['residual'].append(np.linalg.norm(res))
+                    return debugdata
+                else:
+                    return np.linalg.norm(res)
             # Record
             densities_up = np.vstack((densities_up,nup))
             densities_down = np.vstack((densities_down,ndown))
@@ -397,17 +429,28 @@ class HubbardKPoints():
                 ndownnew = np.ones(self.nsites)
             elif self.nelectdown == 0:
                 ndownnew = np.zeros(self.nsites)
+            # Record debug data
+            if debug:
+                debugdata['nup'].append(nupnew)
+                debugdata['ndown'].append(ndownnew)
+                debugdata['residual'].append(np.linalg.norm(res))
             # Check validity
             if (nupnew.max()>1 or nupnew.min()<0
                 or ndownnew.max()>1 or ndownnew.min()<0):
-                raise MixingError("Electron density out of bounds. Try linear_mixing.")
+                if debug:
+                    raise MixingError("Electron density out of bounds. Try linear_mixing.", debugdata)
+                else:
+                    raise MixingError("Electron density out of bounds. Try linear_mixing.")
             # Apply mixing.
             self.set_electrons(nupnew,ndownnew)
         # Done, but due to exceeding the maximum iterations.
         warn("Self-consistency not reached after "+str(max_iter)+" steps. "
              "Residual in last step is "+str(np.linalg.norm(res))+".",
              ConvergenceWarning)
-        return np.linalg.norm(res)
+        if debug:
+            return debugdata
+        else:
+            return np.linalg.norm(res)
     #
     def set_electrons(self,nup=None,ndown=None,backup=True,**kwargs):
         """
