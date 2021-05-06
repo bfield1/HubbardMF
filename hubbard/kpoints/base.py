@@ -329,6 +329,9 @@ class HubbardKPoints():
             mu - optional number. Chemical potential. If set, calculates mixing
                 in the grand canonical ensemble. Requires T and 
                 allow_fractions=True. Number of electrons will vary.
+                NOTE: Pulay mixing is very slow at converging the total number
+                of electrons. If using mu, either stick with linear mixing or 
+                use a much stricter initial convergence threshold.
             debug - Boolean. If True, records the density and other variables
                 at each step and returns it in a dictionary.
         Outputs: if not debug: the residual
