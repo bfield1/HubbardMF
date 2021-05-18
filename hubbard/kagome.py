@@ -6,7 +6,7 @@ Mean field Hubbard model of Kagome lattice. Gamma point only.
 Periodic boundary conditions are assumed.
 
 Created: 2020-07-03
-Last Modified: 2020-11-13
+Last Modified: 2021-05-18
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -93,16 +93,16 @@ class KagomeHubbard(Hubbard):
         Save a JSON representation of the object's data to file f.
         Inputs: f - string, filename.
         Writes a text file f.
-        Last Modified: 2020-08-04
+        Last Modified: 2021-05-18
         """
         with open(f,mode='w') as file:
-            json.dump({'nrows':self.nrows,
-                       'ncols':self.ncols,
-                       'u':self.u,
-                       'mag':self.mag,
+            json.dump({'nrows':int(self.nrows),
+                       'ncols':int(self.ncols),
+                       'u':float(self.u),
+                       'mag':float(self.mag),
                        'nup':self.nup.tolist(),
                        'ndown':self.ndown.tolist(),
-                       'allow_fractions':self.allow_fractions,
+                       'allow_fractions':bool(self.allow_fractions),
                        'kin':self.kin.tolist()},
                       file)
             # Have to use tolist because numpy arrays aren't JSON-able.
