@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-05-05
+Last Modified: 2021-05-24
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -1491,7 +1491,7 @@ class HubbardKPoints():
         # Show the plot.
         plt.show()
     #
-    def plot_spincharge(self,marker_scale=1,scale=1):
+    def plot_spincharge(self,marker_scale=1,scale=1,cmap='BrBG_r'):
         """
         Plots the spin and charge density.
         Marker size/area is proportional to the charge density.
@@ -1500,9 +1500,11 @@ class HubbardKPoints():
         Inputs: marker_scale - number, optional. Factor to scale markersize by.
             scale - number (0,1], optional. Spin density is plotted from 
                 -scale to scale.
+            cmap - str or matplotlib Colormap. Colormap name or instance.
+                I recommend a divergent colormap.
         Effect: Makes a plot
 
-        Last Modified: 2020-11-30
+        Last Modified: 2021-05-24
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
@@ -1513,7 +1515,7 @@ class HubbardKPoints():
         # Get the spin moment.
         spin = (self.nup - self.ndown)[:len(coords)]
         # Plot
-        plt.scatter(x,y,chg*36*(marker_scale**2),spin,cmap="BrBG_r",vmin=-scale,vmax=scale)
+        plt.scatter(x,y,chg*36*(marker_scale**2),spin,cmap=cmap,vmin=-scale,vmax=scale)
         plt.gca().set_aspect('equal')
         cb = plt.colorbar()
         cb.ax.set_title('Spin')
