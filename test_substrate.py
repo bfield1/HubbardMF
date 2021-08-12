@@ -3,11 +3,14 @@
 from math import pi, sqrt
 import unittest
 import warnings
+import os
+import filecmp
 
 import numpy as np
 
 import hubbard.substrate.substrate
 import hubbard.substrate.dftsubstrate
+import hubbard.substrate.vaspband2np
 
 class TestBaseSubstrate(unittest.TestCase):
     def test_init(self):
@@ -284,8 +287,33 @@ class TestDFTSubstrate(unittest.TestCase):
             self.assertEqual(mat.size, expected.size, msg=msg1)
             self.assertAlmostEqual(np.abs(mat-expected).sum(), 0, msg=msg2)
 
-
-
+class Testvaspband2np(unittest.TestCase):
+    ddir = "fixtures/"
+    def test_read_eigenval(self):
+        """Check that read_eigenval evaluates without errors."""
+        eigen = hubbard.substrate.vaspband2np.load_eigenval(self.ddir+'EIGENVAL.dos',outcar=self.ddir+'OUTCAR.dos')
+        nkpt = 217
+        nband = 24
+        self.assertEqual(eigen.bands.shape, (nkpt,nband), msg='EIGENVAL bands array not the right shape')
+        self.assertEqual(eigen.kpoints.shape, (nkpt,3), msg='EIGENVAL kpoints array not the right shape')
+    #
+    def test_savetxt(self):
+        """Check that savetxt_band gives the expected result."""
+        tmpfile = self.ddir+'tmp'
+        # Delete the temporary file if it exists
+        try:
+            os.remove(tmpfile)
+        except FileNotFoundError:
+            pass
+        # Load PROCAR
+        procar = hubbard.substrate.vaspband2np.load_procar(self.ddir+'PROCAR.dos',outcar=self.ddir+'OUTCAR.dos')
+        # N.B. PROCAR and EIGENVAL have different precisions for the same data.
+        hubbard.substrate.vaspband2np.savetxt_band(tmpfile, procar, 16, self.ddir+'OUTCAR.dos')
+        # Check if it matches existing file.
+        msg='Generated file did not match expected file. diff '+tmpfile+' and Ag_band17.dat for comparison.'
+        self.assertTrue(filecmp.cmp(tmpfile, self.ddir+'Ag_band17.dat', shallow=False), msg=msg)
+        # If we get to the end in one piece, remove the tmpfile
+        os.remove(tmpfile)
 
 
 
