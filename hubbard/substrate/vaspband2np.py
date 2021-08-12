@@ -5,6 +5,9 @@ Turns VASP PROCAR and EIGENVAl files into something compatible with dftsubstrate
 Takes a pyrprocar ProcarParser object or EigenvalParser object, made in VASP,
 with its irreducible Brillouin zone, and expands it to the full Brillouin
 zone and writes a single band to file.
+
+All indexing is zero-based (Pythonic). This is different to the indexing
+native to EIGENVAl and PROCAR which is one-based.
 """
 
 from math import cos, sin, pi
@@ -60,12 +63,12 @@ def save_band(filename, procar, iband, outcar):
     Saves a band (on a grid) as a numpy file
 
     Inputs: filename - file to save to
-        procar - ProcarParser object (has kpoints and bands)
+        procar - ProcarParser or EigenvalParser object (has kpoints and bands)
         iband - integer, index of band to save
         outcar - OUTCAR file
     Calls np.save on filename. Per np.save, data is appended to filename.
     """
-    map_grid = map_ibz_to_grid(procar.kpoints, outcar)
+    map_grid = _map_ibz_to_grid(procar.kpoints, outcar)
     np.save(filename, procar.bands[map_grid, iband])
 
 def savetxt_band(filename, procar, iband, outcar):
@@ -74,17 +77,17 @@ def savetxt_band(filename, procar, iband, outcar):
 
 
     Inputs: filename - file to save to
-        procar - ProcarParser object (has kpoints and bands)
+        procar - ProcarParser or EigenvalParser object (has kpoints and bands)
         iband - integer, index of band to save
         outcar - OUTCAR file
     """
-    map_grid = map_ibz_to_grid(procar.kpoints, outcar)
+    map_grid = _map_ibz_to_grid(procar.kpoints, outcar)
     data = procar.bands[map_grid, iband]
     # The trick is saving a 3D array to a 2D format.
     # https://stackoverflow.com/a/3685339/10778387
     with open(filename, 'w') as outfile:
         # Write a header to record the shape and whether we are Gamma.
-        if is_gamma_centered(procar.kpoints):
+        if _is_gamma_centered(procar.kpoints):
             gletter = 'Gamma'
         else:
             gletter = 'Monkhorst' # i.e. original Monkhorst
@@ -121,7 +124,7 @@ def find_crossings(procar):
     Input: ProcarParser or EigenvalParser with loaded file
     Output: (nkpoints,nbands) Boolean ndarray
     """
-    derivative = max_difference(procar)
+    derivative = _max_difference(procar)
     # Where the energy difference between two bands is less than the energy
     # by which one of those bands has changed from adjacent k-points (times
     # a fudge factor), we suspect these two bands might cross here.
@@ -159,7 +162,7 @@ def plot_band_character(procar, iband, outcar, spins=[0], atoms=[-1], orbitals=[
     procar_filtered.selectAtoms(atoms)
     procar_filtered.selectOrbital(orbitals)
     # Get mapping of k-points to full grid
-    map_grid = map_ibz_to_grid(procar.kpoints, outcar)
+    map_grid = _map_ibz_to_grid(procar.kpoints, outcar)
     # Get x and y axes
     if axis==0:
         nx,ny = map_grid.shape[1:]
@@ -181,7 +184,7 @@ def plot_band_character(procar, iband, outcar, spins=[0], atoms=[-1], orbitals=[
 
 # Helper functions for the above.
 
-def max_difference(procar):
+def _max_difference(procar):
     """
     Gets the maximum change in energy between a point and its neighbour within a band
 
@@ -201,7 +204,7 @@ def max_difference(procar):
             out[ik,ib] = dmax
     return out
 
-def rotation_matrix(angle, vect):
+def _rotation_matrix(angle, vect):
     """3D rotation matrix of an angle around a vector."""
     (ux, uy, uz) = np.asarray(vect)/np.linalg.norm(vect) # Normalise
     c = cos(angle)
@@ -216,12 +219,12 @@ def get_reclat(outcar):
     utils = UtilsProcar()
     return utils.RecLatOutcar(outcar)
 
-def fractional_rotation_matrix(angle, vect, reclat):
+def _fractional_rotation_matrix(angle, vect, reclat):
     """3D rotation matrix of an angle around a vector in Cartesian, acting on fractional coords"""
     return np.dot(np.linalg.inv(reclat.transpose()),
-            np.dot(rotation_matrix(angle, vect), reclat.transpose()))
+            np.dot(_rotation_matrix(angle, vect), reclat.transpose()))
 
-def get_symmetry_operations(outcar):
+def _get_symmetry_operations(outcar):
     """
     Returns the symmetry operations on the k-mesh from OUTCAR
 
@@ -269,11 +272,11 @@ def get_symmetry_operations(outcar):
     mat_list = []
     for row in op_table:
         # det(A) * rotation_matrix(angle, (nx, ny, nz))
-        mat = row[1] * fractional_rotation_matrix(row[2]/180*pi, row[3:6], reclat)
+        mat = row[1] * _fractional_rotation_matrix(row[2]/180*pi, row[3:6], reclat)
         mat_list.append(mat)
     return mat_list
 
-def grid_shape_from_kpoints(kpoints):
+def _grid_shape_from_kpoints(kpoints):
     """Takes a set of kpoints, and determines what shape Monkhorst-Pack grid they belong to"""
     kshape = [] # Will become a 3-tuple
     symprec = 1e-5 # Constant, for effectively zero
@@ -292,7 +295,7 @@ def grid_shape_from_kpoints(kpoints):
     # Return the 3-tuple
     return tuple(kshape)
 
-def map_ibz_to_grid(kpoints, outcar):
+def _map_ibz_to_grid(kpoints, outcar):
     """
     Takes irreducible Brillouin zone kpoints, and maps to full Brillouin zone
 
@@ -308,9 +311,9 @@ def map_ibz_to_grid(kpoints, outcar):
         has an even N_i.
     """
     # Get the full k-grid size. We'll need it later
-    grid_shape = np.asarray(grid_shape_from_kpoints(kpoints))
+    grid_shape = np.asarray(_grid_shape_from_kpoints(kpoints))
     # Check if we're a gamma-centered k-mesh, by checking if Gamma is present
-    gamma = is_gamma_centered(kpoints)
+    gamma = _is_gamma_centered(kpoints)
     # Determine the offset of the grid origin
     if gamma:
         offset = np.array([0,0,0])
@@ -318,7 +321,7 @@ def map_ibz_to_grid(kpoints, outcar):
         # If not Gamma-centered and have even dimension, offset by half a gridpoint
         offset = (1 - np.mod(grid_shape,2))/2
     # Get the symmetry operations
-    sym_ops = get_symmetry_operations(outcar)
+    sym_ops = _get_symmetry_operations(outcar)
     # Apply the symmetry operations to get full k-points.
     ks = [np.dot(op, kpoints.transpose()).transpose() for op in sym_ops]
     full_kpoints = np.vstack(ks)
@@ -354,7 +357,7 @@ def map_ibz_to_grid(kpoints, outcar):
         raise ValueError("K-points do not fill full Brillouin zone.")
     return map_grid
 
-def is_gamma_centered(kpoints):
+def _is_gamma_centered(kpoints):
     """Tests for having the Gamma point."""
     # gamma being three 0's.
     return np.any(np.all(kpoints == 0, axis=1))

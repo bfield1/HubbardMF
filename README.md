@@ -20,6 +20,10 @@ If you use this code in a published work, please cite the following references:
 
 Dhaneesh Kumar, Jack Hellerstedt, Bernard Field, Benjamin Lowe, Yuefeng Yin, Nikhil V. Medhekar, Agustin Schiffrin. 'Manifestation of strongly correlated electrons in a 2D kagome metal-organic framework', 2021, arXiv:2104.11431
 
+If you use the substrate module, also cite the following reference:
+
+Bernard Field, Agustin Schiffrin, Nikhil V. Medhekar. Work-in-progress.
+
 # Theory
 
 The Hubbard model is a simple tight-binding model for interacting electrons.
@@ -124,3 +128,26 @@ If you want to plot the results in real-space, you will need to specify the get\
 If you want to plot in reciprocal space (such as with plot\_bands), you should set the reciprocal lattice vectors. See the reclat attribute.
 
 When working in kpoints, you also need to specify the number of dimensions you are working in (we default to 2) so that we know how many numbers are needed to represent each k-point. See the dims attribute.
+
+# Substrates
+
+The substrate module adds a non-interacting substrate with explicitly described bands to the model. We assume point-like hopping between the lattice and the substrate. The substrate is expressed in a plane wave Bloch basis.
+
+## Generating bands from DFT calculations
+
+The hubbard.substrate.vaspband2np module allows converting PROCAR or EIGENVAL files output by VASP into a format readable by hubbard.substrate.dftsubstrate.
+
+Reading PROCAR files is done using the pyprocar module, which must be installed separately: https://github.com/romerogroup/pyprocar
+
+First, do a VASP calculation with your substrate. The calculation should be of a 2D slab, with a Monkhorst-Pack k-mesh that has only 1 point in the orthogonal direction.
+Next, take the OUTCAR and either the PROCAR or EIGENVAL files from this calculation. The OUTCAR file is needed to identify the symmetry operations. You will also need an OUTCAR file to determine the Fermi level, although the Fermi level could be taken from an earlier self-consistent calculation.
+
+To convert the fourth band of PROCAR into a text file, you can do
+```python3
+import hubbard.substrate.vaspband2np as vb
+procar = vb.load_procar('PROCAR', outcar='OUTCAR')
+vb.savetxt_band('band.dat', procar, 3, 'OUTCAR')
+```
+Analagous functions exist for EIGENVAL files and saving directly as numpy arrays.
+
+There are several helper functions for analysing the bands. `bands_in_energy_window` is useful for identifying the indices of bands of interest. If you are using PROCAR, you can use `plot_band_character` to identify the spd-projected atomic character of the bands over the Brillouin zone. This is useful for seeing if a band has any surface contribution near Fermi.
