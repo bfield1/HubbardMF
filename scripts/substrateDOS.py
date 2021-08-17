@@ -14,6 +14,7 @@ With those assumption, we can analytically calculate the DOS of the band.
 import argparse
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from hubbard.substrate.dftsubstrate import DFTSubstrate
 import scripts.bilinearDOS as bilinearDOS
@@ -95,6 +96,38 @@ def nstates(e, array):
     nstatessum *= 2
     return nstatessum
 
+def plot_dos(array, emin=None, emax=None, ymax=None, npoints=100):
+    """
+    Plots the DOS
+
+    Inputs:
+        array - 2D array of numbers, band dispersion sampled on a Monkhorst-
+            Pack grid.
+        emin - number. Lower bound to plot. Default band minimum.
+        emax - number. Upper bound to plot. Default band maximum.
+        ymax - number. Upper bound to plot. Default no limit.
+    Output: fig, ax
+    """
+    array = np.asarray(array)
+    # Get limits
+    if emin is None:
+        emin = array.min()
+    if emax is None:
+        emax = array.max()
+    # Generate data.
+    x = np.linspace(emin, emax, npoints)
+    y = [ dos(e,array) for e in x ]
+    # Plot
+    fig, ax = plt.subplots()
+    ax.plot(x,y)
+    if ymax is not None:
+        ax.set_ylim(0,ymax)
+    # Annotate
+    ax.set_xlabel('Energy')
+    ax.set_ylabel('DOS')
+    return fig, ax
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             description="Calculate DOS or related quantity for a DFT substrate band.")
@@ -105,9 +138,10 @@ if __name__ == "__main__":
     parser.add_argument('-a','--average', type=float, help="Calculate the average DOS between this energy and the other energy.")
     parser.add_argument('-i','--info', action='store_true', help="Print information on the band.")
     parser.add_argument('-t','--type', choices=['txt','npy'], help="File type of band (auto-detects if not specified)")
+    parser.add_argument('-p','--plot', action='store_true', help="Plots the DOS.")
     args = parser.parse_args()
     # If no flags are given, assume we want to calculate DOS.
-    if not args.dos and not args.nstates and not args.info and (args.average is None):
+    if not args.dos and not args.nstates and not args.info and (args.average is None) and not args.plot:
         args.dos = True
     # Load the array
     if args.type == 'txt':
@@ -133,3 +167,6 @@ if __name__ == "__main__":
         n1 = nstates(args.average, array)
         n2 = nstates(args.energy, array)
         print("Average DOS:", (n2 - n1)/(args.energy - args.average))
+    if args.plot:
+        fig, ax = plot_dos(array)
+        plt.show()
