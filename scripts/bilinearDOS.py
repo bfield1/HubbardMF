@@ -310,7 +310,7 @@ def nstates(e,e11,e12,e21,e22,debug=False) -> float:
         if lim[0] == 0 and lim[1] == 1:
             if debug: print("Contour cuts horizontally.")
             # Contour is horizontal
-            if lower_corner[0]:
+            if lower_corners[0]:
                 if debug: print("Integrate lower half.")
                 return calc_area_under_curve(e,*lim,*box)
             else:
