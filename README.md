@@ -20,6 +20,10 @@ If you use this code in a published work, please cite the following references:
 
 Dhaneesh Kumar, Jack Hellerstedt, Bernard Field, Benjamin Lowe, Yuefeng Yin, Nikhil V. Medhekar, Agustin Schiffrin. 'Manifestation of Strongly Correlated Electrons in a 2D Kagome Metal-Organic Framework', *Adv. Funct. Mater.* 2021, 2106474. <https://doi.org/10.1002/adfm.202106474>
 
+This code can also be cited directly:
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5502306.svg)](https://doi.org/10.5281/zenodo.5502306)
+
 # Theory
 
 The Hubbard model is a simple tight-binding model for interacting electrons.
