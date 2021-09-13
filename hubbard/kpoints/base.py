@@ -1366,7 +1366,7 @@ class HubbardKPoints():
     ## PLOTTERS
     #
     def plot_bands(self, klist, nsec, T=None, emin=None, emax=None,
-                   klabels=None, atoms=None):
+                   klabels=None, atoms=None, inplace=True, ax=None):
         """
         Plot the band structure, for some given k-points.
 
@@ -1385,9 +1385,12 @@ class HubbardKPoints():
                 labels.
             atoms - optional. List of integers. Indices of sites/orbitals to
                 project onto. Shows as circles on the band structure.
+            inplace - Boolean. Plot in place.
+            ax - optional, matplotlib Axes. Plot to this.
         Effects: Makes a plot.
+        Returns: Figure, Axes.
 
-        Last Modified: 2021-03-22
+        Last Modified: 2021-09-13
         """
         # Get the band structure.
         if atoms is None:
@@ -1404,34 +1407,45 @@ class HubbardKPoints():
                                         axis=1))
         # Identify the tic locations
         tics = klen[np.arange(0, nsec*(len(klist)-1)+1, nsec)]
+        # Get the Axes and Figure.
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
         # Plot spin up bands
         for b in bands[:,0,:].transpose():
-            plt.plot(klen,b,color='r')
+            ax.plot(klen,b,color='r')
         # Plot spin down bands
         for b in bands[:,1,:].transpose():
-            plt.plot(klen,b,color='b')
+            ax.plot(klen,b,color='b')
         # Plot projection onto atoms.
         if atoms is not None:
             for (b,p) in zip(bands[:,0,:].transpose(), projections[:,0,:].transpose()):
-                plt.scatter(klen,b,s=p*36, edgecolor='r', facecolor='none', zorder=2.1, marker='o')
+                ax.scatter(klen,b,s=p*36, edgecolor='r', facecolor='none', zorder=2.1, marker='o')
             for (b,p) in zip(bands[:,1,:].transpose(), projections[:,1,:].transpose()):
-                plt.scatter(klen,b,s=p*36, edgecolor='b', facecolor='none', zorder=2.1, marker='o')
-        plt.ylim(emin, emax)
-        plt.xticks(tics, klabels)
-        plt.grid(axis='x')
-        plt.axhline(y=0, color='0.5', linewidth=0.5, zorder=1.5)
-        plt.show()
+                ax.scatter(klen,b,s=p*36, edgecolor='b', facecolor='none', zorder=2.1, marker='o')
+        ax.set_ylim(emin, emax)
+        ax.set_xticks(tics)
+        ax.set_xticklabels(klabels)
+        ax.grid(axis='x')
+        ax.axhline(y=0, color='0.5', linewidth=0.5, zorder=1.5)
+        if inplace:
+            plt.show()
+        return fig, ax
     #
-    def plot_spin(self,marker_scale=1):
+    def plot_spin(self, marker_scale=1, inplace=True, ax=None):
         """
         Plots the spin density.
         Size/area of marker is proportional to magnitude.
         Yellow is spin up. Blue is spin down.
 
         Inputs: marker_scale - number, optional. Factor to scale markersize by.
+            inplace - Boolean. Plot in place.
+            ax - optional, matplotlib Axes. Plot to this.
         Effects: Makes a plot.
+        Output: Figure, Axes.
 
-        Last Modified: 2021-02-17
+        Last Modified: 2021-09-13
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
@@ -1443,20 +1457,30 @@ class HubbardKPoints():
         color_up = 'y'
         color_down = 'b'
         spin_col = [ color_down if x<0 else color_up for x in np.sign(spin) ]
+        # Get figure and axes
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
         # Default marker size is 6. Default marker area is 6**2=36.
-        plt.scatter(x,y,abs(spin)*36*(marker_scale**2),spin_col)
-        plt.gca().set_aspect('equal')
-        plt.show()
+        ax.scatter(x,y,abs(spin)*36*(marker_scale**2),spin_col)
+        ax.set_aspect('equal')
+        if inplace:
+            plt.show()
+        return fig, ax
     #
-    def plot_charge(self,marker_scale=1):
+    def plot_charge(self,marker_scale=1, inplace=True, ax=None):
         """
         Plots the charge density.
         Marker size/area is proportional to the charge density.
 
         Inputs: marker_scale - number, optional. Factor to scale markersize by.
+            inplace - Boolean. Plot in place.
+            ax - optional, matplotlib Axes. Plot to this.
         Effect: Makes a plot.
+        Output: Figure, Axes
 
-        Last Modified: 2021-02-17
+        Last Modified: 2021-09-13
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
@@ -1464,34 +1488,64 @@ class HubbardKPoints():
         y = coords[:,1]
         # Get the charge density.
         chg = (self.nup + self.ndown)[:len(coords)]
+        # Get figure and axes
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
         # Default marker size is 6. Default marker area is 6**2=36.
-        plt.scatter(x,y,chg*36*(marker_scale**2))
-        plt.gca().set_aspect('equal')
-        plt.show()
+        ax.scatter(x,y,chg*36*(marker_scale**2))
+        ax.set_aspect('equal')
+        if inplace:
+            plt.show()
+        return fig, ax
     #
-    def plot_DOS(self,sigma,de,emin=None,emax=None,midpoint=True):
+    def plot_DOS(self, sigma, de, emin=None, emax=None, midpoint=True,
+                inplace=True, ax=None):
         """
         Plots the density of states. See density_of_states for arguments.
         Also shows the Fermi levels, although this Fermi level does
         not fully account for the broadening.
+        (I wrote this Fermi calculation prior to the fancier calculations
+        I use later. As such, this function is slightly antiquated.)
 
-        Last Modified: 2020-07-10
+        Inputs:
+            sigma - positive number. Gaussian broadening to apply.
+            de - positive number. Energy step to sample.
+            emin - optional number. Minimum energy bound (defaults to full range)
+            emax - optional number. Maximum energy bound (defaults to full range)
+            midpoint - Boolean. Determines whether the Fermi level is given by
+                the midpoint between the highest occupied and lowest unoccupied
+                states, or as just the highest occupied state.
+            inplace - Boolean. Whether to plot in-place.
+            ax - optional matplotlib Axes to plot to.
+        Output: Figure, Axes.
+
+        Last Modified: 2021-09-13
         """
         # Calculate the DOS.
         energy, dosup, dosdown = self.density_of_states(sigma,de,emin,emax)
         # Calculate the Fermi level.
         fermi_up, fermi_down = self.fermi(midpoint)
+        # Get figure and axes
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
         # Plot the DOS.
-        plt.plot(energy, dosup, 'k', energy, -dosdown, 'k') # Black lines
-        plt.xlabel('Energy')
-        plt.ylabel('DOS')
+        ax.plot(energy, dosup, 'k', energy, -dosdown, 'k') # Black lines
+        ax.set_xlabel('Energy')
+        ax.set_ylabel('DOS')
         # Plot the Fermi
-        plt.vlines(fermi_up,0,dosup.max(),colors='b')
-        plt.vlines(fermi_down,-dosdown.max(),0,colors='b')
+        ax.vlines(fermi_up,0,dosup.max(),colors='b')
+        ax.vlines(fermi_down,-dosdown.max(),0,colors='b')
         # Show the plot.
-        plt.show()
+        if inplace:
+            plt.show()
+        return fig, ax
     #
-    def plot_spincharge(self,marker_scale=1,scale=1,cmap='BrBG_r'):
+    def plot_spincharge(self,marker_scale=1,scale=1,cmap='BrBG_r',
+                    inplace=True, ax=None):
         """
         Plots the spin and charge density.
         Marker size/area is proportional to the charge density.
@@ -1502,9 +1556,12 @@ class HubbardKPoints():
                 -scale to scale.
             cmap - str or matplotlib Colormap. Colormap name or instance.
                 I recommend a divergent colormap.
+            inplace - Boolean. Whether to plot in-place.
+            ax - optional matplotlib Axes to plot to.
         Effect: Makes a plot
+        Output: Figure, Axes
 
-        Last Modified: 2021-05-24
+        Last Modified: 2021-09-13
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
@@ -1514,12 +1571,19 @@ class HubbardKPoints():
         chg = (self.nup + self.ndown)[:len(coords)]
         # Get the spin moment.
         spin = (self.nup - self.ndown)[:len(coords)]
+        # Get figure and axes
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
         # Plot
-        plt.scatter(x,y,chg*36*(marker_scale**2),spin,cmap=cmap,vmin=-scale,vmax=scale)
-        plt.gca().set_aspect('equal')
-        cb = plt.colorbar()
+        scat = ax.scatter(x,y,chg*36*(marker_scale**2),spin,cmap=cmap,vmin=-scale,vmax=scale)
+        ax.set_aspect('equal')
+        cb = fig.colorbar(scat, ax=ax)
         cb.ax.set_title('Spin')
-        plt.show()
+        if inplace:
+            plt.show()
+        return fig, ax
     #
     ## SETTERS
     #
