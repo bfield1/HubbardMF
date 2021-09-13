@@ -24,6 +24,10 @@ If you use the substrate module, also cite the following reference:
 
 Bernard Field, Agustin Schiffrin, Nikhil V. Medhekar. Work-in-progress.
 
+This code can also be cited directly:
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5502306.svg)](https://doi.org/10.5281/zenodo.5502306)
+
 # Theory
 
 The Hubbard model is a simple tight-binding model for interacting electrons.
