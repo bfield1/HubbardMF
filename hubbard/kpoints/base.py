@@ -1545,7 +1545,7 @@ class HubbardKPoints():
         return fig, ax
     #
     def plot_spincharge(self,marker_scale=1,scale=1,cmap='BrBG_r',
-                    inplace=True, ax=None):
+                    inplace=True, ax=None, cbar=True):
         """
         Plots the spin and charge density.
         Marker size/area is proportional to the charge density.
@@ -1558,6 +1558,7 @@ class HubbardKPoints():
                 I recommend a divergent colormap.
             inplace - Boolean. Whether to plot in-place.
             ax - optional matplotlib Axes to plot to.
+            cbar - Boolean. Plot the colourbar.
         Effect: Makes a plot
         Output: Figure, Axes
 
@@ -1573,14 +1574,39 @@ class HubbardKPoints():
         spin = (self.nup - self.ndown)[:len(coords)]
         # Get figure and axes
         if ax is None:
-            fig, ax = plt.subplots()
+            # Set up figure size to reduce whitespace
+            # What aspect ratio do we need?
+            if y.max() == y.min():
+                aspect = 1000
+            else:
+                aspect = (x.max() - x.min())/(y.max() - y.min())
+            # Bound the aspect ratio to prevent pathological cases.
+            aspect = max(min(aspect, 4), 1/4)
+            # Go from default figsize...
+            figsize = plt.rcParams["figure.figsize"]
+            default_aspect = figsize[0]/figsize[1]
+            if aspect > default_aspect:
+                # Figure is short and wide
+                figsize = [figsize[0], figsize[0]/aspect]
+            else:
+                # Figure is skinny and tall
+                figsize = [figsize[1]*aspect, figsize[1]]
+            if cbar:
+                # Add some space for the colourbar.
+                figsize[0] += 0.5
+            fig, ax = plt.subplots(figsize=figsize)
         else:
             fig = ax.figure
         # Plot
         scat = ax.scatter(x,y,chg*36*(marker_scale**2),spin,cmap=cmap,vmin=-scale,vmax=scale)
         ax.set_aspect('equal')
-        cb = fig.colorbar(scat, ax=ax)
-        cb.ax.set_title('Spin')
+        # Remove ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # Draw colourbar.
+        if cbar:
+            cb = fig.colorbar(scat, ax=ax)
+            cb.ax.set_title('Spin')
         if inplace:
             plt.show()
         return fig, ax
