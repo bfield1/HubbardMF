@@ -18,7 +18,7 @@ This is code for running simulations of a Mean Field Hubbard (MFH) model.
 
 If you use this code in a published work, please cite the following references:
 
-Dhaneesh Kumar, Jack Hellerstedt, Bernard Field, Benjamin Lowe, Yuefeng Yin, Nikhil V. Medhekar, Agustin Schiffrin. 'Manifestation of strongly correlated electrons in a 2D kagome metal-organic framework', 2021, arXiv:2104.11431
+Dhaneesh Kumar, Jack Hellerstedt, Bernard Field, Benjamin Lowe, Yuefeng Yin, Nikhil V. Medhekar, Agustin Schiffrin. 'Manifestation of Strongly Correlated Electrons in a 2D Kagome Metal-Organic Framework', *Adv. Funct. Mater.* 2021, 2106474. <https://doi.org/10.1002/adfm.202106474>
 
 If you use the substrate module, also cite the following reference:
 
