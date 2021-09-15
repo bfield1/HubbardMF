@@ -1545,7 +1545,7 @@ class HubbardKPoints():
         return fig, ax
     #
     def plot_spincharge(self,marker_scale=1,scale=1,cmap='BrBG_r',
-                    inplace=True, ax=None, cbar=True):
+                    inplace=True, ax=None, cbar=True, swap_xy=False):
         """
         Plots the spin and charge density.
         Marker size/area is proportional to the charge density.
@@ -1559,15 +1559,18 @@ class HubbardKPoints():
             inplace - Boolean. Whether to plot in-place.
             ax - optional matplotlib Axes to plot to.
             cbar - Boolean. Plot the colourbar.
+            swap_xy - Boolean. Swap x and y coords.
         Effect: Makes a plot
         Output: Figure, Axes
 
-        Last Modified: 2021-09-13
+        Last Modified: 2021-09-15
         """
         # Get the Cartesian coordinates of each point.
         coords = self.get_coordinates()
-        x = coords[:,0]
-        y = coords[:,1]
+        if swap_xy:
+            y,x = coords[:,0], coords[:,1]
+        else:
+            x,y = coords[:,0], coords[:,1]
         # Get the charge density.
         chg = (self.nup + self.ndown)[:len(coords)]
         # Get the spin moment.
