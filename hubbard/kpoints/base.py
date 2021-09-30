@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-05-24
+Last Modified: 2021-09-30
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -828,25 +828,14 @@ class HubbardKPoints():
             projections - ndarray, same shape as bands. The projections of each
                 eigenstate in bands onto atoms.
 
-        Last Modified: 2021-03-22
+        Last Modified: 2021-09-30
         """
         # Make the full list of k-points.
         klist = np.asarray(klist)
         klist_full = [ (klist[int(np.ceil(i/nsec))] - klist[int(i/nsec)])
                        * (i/nsec - int(i/nsec)) + klist[int(i/nsec)]
                        for i in range(nsec*(len(klist)-1)+1) ]
-        bands = np.empty((len(klist_full), 2, self.nsites))
-        projections = np.empty(bands.shape)
-        # Got to do eigensysteming manually
-        potup, potdown, _ = self._potential()
-        for n, k in enumerate(klist_full):
-            kin = self.get_kinetic(k)
-            # Spin up
-            bands[n,0], v = np.linalg.eigh(kin + potup)
-            projections[n,0] = (abs(v[atoms,:])**2).sum(axis=0)
-            # Spin down
-            bands[n,1], v = np.linalg.eigh(kin + potdown)
-            projections[n,1] = (abs(v[atoms,:])**2).sum(axis=0)
+        bands, projections = self.eigenvalues_at_kpoints_projected(atoms, klist_full)
         return klist_full, bands, projections
     #
     def chemical_potential(self,T,N=None):
@@ -941,6 +930,38 @@ class HubbardKPoints():
             # Spin down eigenvalues
             bands[n,1] = np.linalg.eigvalsh(kin + potdown)
         return bands
+
+    def eigenvalues_at_kpoints_projected(self, atoms, klist=None):
+        """
+        Returns eigenenergies at the specified k-points, projected onto atoms.
+
+        Input: atoms - list of indices. Atoms to project onto.
+            klist, list-like containing length self.dim list-likes
+                of numbers. i.e. a list of k-points. Defaults to self.kmesh.
+                k-points are in fractional coordinates.
+        Output: bands - a shape (len(klist),2,self.nsites) ndarray. First axis is
+                the k-points. 2nd axis is the spin (up or down). Third are the
+                eigenergies.
+            projections - ndarray of same shape as bands. Projections of each
+                eigenstate onto the specified atoms.
+
+        Last Modified: 2021-09-30
+        """
+        if klist is None:
+            klist = self.kmesh
+        bands = np.empty((len(klist), 2, self.nsites))
+        projections = np.empty(bands.shape)
+        # Got to do eigensysteming manually
+        potup, potdown, _ = self._potential()
+        for n, k in enumerate(klist):
+            kin = self.get_kinetic(k)
+            # Spin up
+            bands[n,0], v = np.linalg.eigh(kin + potup)
+            projections[n,0] = (abs(v[atoms,:])**2).sum(axis=0)
+            # Spin down
+            bands[n,1], v = np.linalg.eigh(kin + potdown)
+            projections[n,1] = (abs(v[atoms,:])**2).sum(axis=0)
+        return bands, projections
     #
     def eigenstates(self,mode='states',emin=None,emax=None):
         """
