@@ -9,6 +9,8 @@ We are given a grid of energy points which fill a Monkhorst-pack grid in
 the Brillouin zone. We assume bilinear interpolation between these points.
 We also assume periodic boundary conditions.
 With those assumption, we can analytically calculate the DOS of the band.
+
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
 """
 
 import argparse

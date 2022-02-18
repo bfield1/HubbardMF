@@ -2,6 +2,7 @@
 
 """
 This file loads a VASP EIGENVAL file.
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
 """
 
 import numpy as np

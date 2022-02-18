@@ -35,6 +35,8 @@ Arguments from command line:
     e, e11, e12, e21, e22
     e - the energy to inspect
     e11, e12, e21, e22 - the energies at the left/right lower/upper corners of the Brillouin zone.
+
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
 """
 
 def abcd(e11,e12,e21,e22) -> tuple:

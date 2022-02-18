@@ -1,4 +1,8 @@
 #!/usr/bin/python3
+"""
+Base class for coupling the Hubbard model to substrates
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
+"""
 
 import copy
 from inspect import isclass

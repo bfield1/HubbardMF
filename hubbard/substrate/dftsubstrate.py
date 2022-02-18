@@ -2,6 +2,7 @@
 
 """
 Substrate class for bands made from ab initio data.
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
 """
 from warnings import warn
 

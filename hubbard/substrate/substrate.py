@@ -7,7 +7,7 @@ The substrates are structureless in real space and have a known dispersion
 in momentum space.
 Each substrate holds a single orbital only (for now, at least).
 
-Author: Bernard Field
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
 """
 
 from math import sqrt, pi

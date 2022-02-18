@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-
+"""
+Hubbard model of a single kagome unit cell on a non-interacting periodic substrate
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
+"""
 from math import pi
 
 import numpy as np

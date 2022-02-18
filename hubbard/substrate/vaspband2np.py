@@ -2,12 +2,14 @@
 """
 Turns VASP PROCAR and EIGENVAl files into something compatible with dftsubstrate
 
-Takes a pyrprocar ProcarParser object or EigenvalParser object, made in VASP,
+Takes a pyprocar ProcarParser object or EigenvalParser object, made in VASP,
 with its irreducible Brillouin zone, and expands it to the full Brillouin
 zone and writes a single band to file.
 
 All indexing is zero-based (Pythonic). This is different to the indexing
 native to EIGENVAl and PROCAR which is one-based.
+
+Copyright (C) 2022 Bernard Field, GNU GPL v3+
 """
 
 from math import cos, sin, pi
