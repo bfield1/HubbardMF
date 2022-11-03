@@ -22,7 +22,7 @@ Dhaneesh Kumar, Jack Hellerstedt, Bernard Field, Benjamin Lowe, Yuefeng Yin, Nik
 
 If you use the substrate module, also cite the following reference:
 
-Bernard Field, Agustin Schiffrin, Nikhil V. Medhekar. 'Correlation-induced magnetism in substrate-supported 2D metal-organic frameworks', In preparation 2022
+Bernard Field, Agustin Schiffrin, Nikhil V. Medhekar. 'Correlation-induced magnetism in substrate-supported 2D metal-organic frameworks', *npj Comput. Mater.* 2022, in press
 
 This code can also be cited directly:
 

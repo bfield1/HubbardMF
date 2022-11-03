@@ -27,7 +27,7 @@ k-space vectors exist in. It defaults to 2, but you can make it any positive
 integer. Please don't change it after initialisation.
 
 Created: 2020-09-16
-Last Modified: 2021-09-30
+Last Modified: 2022-11-03
 Author: Bernard Field
     Copyright (C) 2021 Bernard Field, GNU GPL v3+
 """
@@ -865,9 +865,11 @@ class HubbardKPoints():
         energies = np.sort(np.concatenate((eup,edown)))
         return self._chemical_potential_from_states(T,N,energies)
     #
-    def density_of_states(self,sigma,de,emin=None,emax=None):
+    def density_of_states(self, sigma, de, emin=None, emax=None, atoms=None):
         """
         Compute density of states with Gaussian smearing.
+
+        Supports calculating projection onto atoms.
 
         Inputs: sigma - positive number, Gaussian smearing width.
             de - positive number, step-size for energy plotting.
@@ -875,15 +877,24 @@ class HubbardKPoints():
                 Defaults to minimum eigenvalue - 3 sigma.
             emax - number, optional. Maximum energy to plot.
                 Defaults to maximum eigenvalue + 3 sigma.
+            atoms - list of indices, optional. Atoms to project onto.
+                Defaults to all atoms
         Outputs: Three numerical 1D ndarrays of equal length.
             energy - the energy axis.
             dosup - the DOS of the spin up states.
             dosdown - the DOS of the spin down states.
 
-        Last Modified: 2020-09-16
+        Last Modified: 2022-11-03
         """
         # Get the eigenenergy spectrum.
-        eup, edown, _, _ = self._eigensystem()
+        eup, edown, vup, vdown = self._eigensystem()
+        # Get projection
+        if atoms is None:
+            pup = np.ones(eup.shape)
+            pdown = np.ones(edown.shape)
+        else:
+            pup = (abs(vup[atoms,:])**2).sum(axis=0)
+            pdown = (abs(vdown[atoms,:])**2).sum(axis=0)
         # Determine energy bounds if not specified.
         if emin is None:
             emin = min(eup.min(),edown.min()) - 3*sigma
@@ -895,10 +906,12 @@ class HubbardKPoints():
         # Get coordinate grids.
         energymesh, eupmesh = np.meshgrid(energy, eup, sparse=True)
         _, edownmesh = np.meshgrid(energy, edown, sparse=True)
+        _, pupmesh = np.meshgrid(energy, pup, sparse=True)
+        _, pdownmesh = np.meshgrid(energy, pdown, sparse=True)
         # Do Gaussian smearing.
-        dosup = (np.exp(-(energymesh - eupmesh)**2 / (2*sigma))/
+        dosup = (pupmesh * np.exp(-(energymesh - eupmesh)**2 / (2*sigma))/
                  (sigma*np.sqrt(2*np.pi))).sum(axis = 0)
-        dosdown = (np.exp(-(energymesh - edownmesh)**2 / (2*sigma))/
+        dosdown = (pdownmesh * np.exp(-(energymesh - edownmesh)**2 / (2*sigma))/
                  (sigma*np.sqrt(2*np.pi))).sum(axis = 0)
         # Return
         return energy, dosup/self.kpoints, dosdown/self.kpoints
@@ -1022,6 +1035,49 @@ class HubbardKPoints():
                 abs(vup.transpose()[iminup:imaxup+1])**2,
                 edown[imindown:imaxdown+1],
                 abs(vdown.transpose()[imindown:imaxdown+1])**2)
+    #
+    def eigensystem(self):
+        """
+        Solve the eigensystem and return the eigenenergies and states.
+
+        Outputs: eup, edown, vup, vdown
+            eup, edown - (nsites*kpoints,) ndarray of numbers, sorted.
+                    Eigenenergies.
+            vup, vdown - (nsites,nsites*kpoints) ndarray of numbers.
+                Eigenvectors.
+                v[:,i] is the normalised eigenvector corresponding to the
+                eigenvalue e[i], as output by np.linalg.eigh.
+
+        Last Modified: 2020-09-16
+        """
+        # Grab constants for conciseness
+        nsites = self.nsites
+        # Get the potential matrices
+        potup, potdown, _ = self._potential()
+        # Initialise
+        eup = np.empty(nsites * self.kpoints)
+        edown = np.empty(nsites * self.kpoints)
+        vup = np.empty((nsites, nsites * self.kpoints),dtype='complex')
+        vdown = np.empty((nsites, nsites * self.kpoints),dtype='complex')
+        # Solve for the single-electron energy levels at each k-point
+        for n, k in enumerate(self.kmesh):
+            kin = self.get_kinetic(k)
+            eup[n*nsites:(n+1)*nsites], vup[:,n*nsites:(n+1)*nsites] =\
+                                        np.linalg.eigh(kin + potup)
+            edown[n*nsites:(n+1)*nsites], vdown[:,n*nsites:(n+1)*nsites] =\
+                                        np.linalg.eigh(kin + potdown)
+        # Sort eigenstates by energy.
+        # Skip this step if only one k-point due to redundancy.
+        if self.kpoints > 1:
+            inds_up = np.argsort(eup)
+            inds_down = np.argsort(edown)
+            eup = eup[inds_up]
+            edown = edown[inds_down]
+            vup = vup[:,inds_up]
+            vdown = vdown[:,inds_down]
+        return eup, edown, vup, vdown
+    # Alias for backwards compatability
+    _eigensystem = eigensystem
     #
     def energy(self,T=None, mu=None):
         """
@@ -1274,47 +1330,6 @@ class HubbardKPoints():
                 # Recalculate our guess at the number of electrons.
                 nguess = fermi_distribution(energies,T,mu).sum()
         return mu
-    #
-    def _eigensystem(self):
-        """
-        Solve the eigensystem and return the eigenenergies and states.
-
-        Outputs: eup, edown, vup, vdown
-            eup, edown - (nsites*kpoints,) ndarray of numbers, sorted.
-                    Eigenenergies.
-            vup, vdown - (nsites,nsites*kpoints) ndarray of numbers.
-                Eigenvectors.
-                v[:,i] is the normalised eigenvector corresponding to the
-                eigenvalue e[i], as output by np.linalg.eigh.
-
-        Last Modified: 2020-09-16
-        """
-        # Grab constants for conciseness
-        nsites = self.nsites
-        # Get the potential matrices
-        potup, potdown, _ = self._potential()
-        # Initialise
-        eup = np.empty(nsites * self.kpoints)
-        edown = np.empty(nsites * self.kpoints)
-        vup = np.empty((nsites, nsites * self.kpoints),dtype='complex')
-        vdown = np.empty((nsites, nsites * self.kpoints),dtype='complex')
-        # Solve for the single-electron energy levels at each k-point
-        for n, k in enumerate(self.kmesh):
-            kin = self.get_kinetic(k)
-            eup[n*nsites:(n+1)*nsites], vup[:,n*nsites:(n+1)*nsites] =\
-                                        np.linalg.eigh(kin + potup)
-            edown[n*nsites:(n+1)*nsites], vdown[:,n*nsites:(n+1)*nsites] =\
-                                        np.linalg.eigh(kin + potdown)
-        # Sort eigenstates by energy.
-        # Skip this step if only one k-point due to redundancy.
-        if self.kpoints > 1:
-            inds_up = np.argsort(eup)
-            inds_down = np.argsort(edown)
-            eup = eup[inds_up]
-            edown = edown[inds_down]
-            vup = vup[:,inds_up]
-            vdown = vdown[:,inds_down]
-        return eup, edown, vup, vdown
     #
     def _energy_from_states(self,eup,edown,offset,T=None,mu=None):
         """
